@@ -355,7 +355,7 @@ public class Main {
 
         void randomizeEnergy() {
             for (Cell cell : map) {
-                cell.energy = RANDOM.nextInt(MAX_ENERGY);
+                cell.energy = RANDOM.nextInt(MAX_ENERGY/10);
             }
         }
 
@@ -409,7 +409,7 @@ public class Main {
 
         private void fountain() {
             Cell cell = map[getCoords(RANDOM.nextInt(10), RANDOM.nextInt(10))];
-            cell.energy = min(MAX_ENERGY, cell.energy + RANDOM.nextInt(MAX_ENERGY / 10));
+            cell.energy = min(MAX_ENERGY, cell.energy + RANDOM.nextInt(10));
         }
 
         private int getY(int coords) {
