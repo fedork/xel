@@ -2,8 +2,9 @@ package net.karpelevitch.l2;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.awt.image.BufferedImage;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Random;
@@ -16,14 +17,13 @@ import static java.util.Arrays.copyOf;
 public class Main {
 
     public static final Random RANDOM = new Random(0/*System.currentTimeMillis()*/);
-    public static final int SIZE = 300;
+    public static final int SIZE = 200;
     public static final int[] dx = {0, 1, 1, 1, 0, -1, -1, -1, 0, 2, 2, 2, 0, -2, -2, -2};
     public static final int[] dy = {-1, -1, 0, 1, 1, 1, 0, -1, -2, -2, 0, 2, 2, 2, 0, -2};
     private static final int MAX_ENERGY = 10000;
     private static final int MAX_MEM = 10000;
     private static final int COLOR_COUNT;
     private static final int[] COLORS;
-    private static final byte[] EMPTY = {};
 
     static {
         Color[] colors = {Color.GREEN, Color.BLUE, Color.CYAN, Color.MAGENTA, Color.ORANGE, Color.PINK, Color.RED, Color.YELLOW};
@@ -31,14 +31,66 @@ public class Main {
         COLORS = new int[COLOR_COUNT];
         for (int i = 0; i < colors.length; i++) {
             Color color = colors[i];
-            COLORS[i*3] = color.getRGB();
-            COLORS[i*3+1] = color.darker().getRGB();
-            COLORS[i*3+2] = color.darker().darker().getRGB();
+            COLORS[i * 3] = color.getRGB();
+            COLORS[i * 3 + 1] = color.darker().getRGB();
+            COLORS[i * 3 + 2] = color.darker().darker().getRGB();
         }
     }
 
+    public static void main(String[] args) throws InterruptedException {
+        JFrame frame = new JFrame("l2");
+        frame.setBounds(0, 0, SIZE, SIZE);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        BufferedImage image = new BufferedImage(SIZE, SIZE, BufferedImage.TYPE_INT_ARGB);
+        frame.setVisible(true);
+        int rgb = Color.GREEN.getRGB();
+        System.out.println("rgb = " + Integer.toHexString(rgb));
 
+        frame.setContentPane(new JLabel(new ImageIcon(image)));
+        final int[] mode = {0};
+        frame.addKeyListener(new KeyListener() {
+            @Override
+            public void keyTyped(KeyEvent keyEvent) {
 
+            }
+
+            @Override
+            public void keyPressed(KeyEvent keyEvent) {
+                if (keyEvent.getKeyChar() == ' ') {
+                    mode[0] ^= 1;
+                }
+            }
+
+            @Override
+            public void keyReleased(KeyEvent keyEvent) {
+
+            }
+        });
+        frame.pack();
+
+        World world = new World(SIZE);
+
+        world.createRandom(SIZE * SIZE / 10);
+
+        world.randomizeEnergy();
+
+        long startTime = System.currentTimeMillis();
+        int gen = 0;
+        //noinspection InfiniteLoopStatement
+        while (true) {
+
+            world.update();
+
+            world.draw(mode[0] == 0, image);
+
+            frame.repaint();
+            gen++;
+            if (gen % 100 == 0) {
+                System.out.println("gen = " + gen);
+                System.out.println("fps =  " + gen * 1000.0 / (System.currentTimeMillis() - startTime));
+            }
+        }
+    }
 
     static class P {
         private static final int INC = 0;
@@ -57,25 +109,27 @@ public class Main {
         private static final int CLONE = 13;
         private static final int RND = 14;
         private static final int SHOOT = 15;
+        private final World world;
+        public int coords;
         byte[] mem;
+        int memlength;
         int ip;
         byte color;
         int energy;
-        private final World world;
-        public int coords;
         int age = 0;
 
-        public P(World world, int coords, byte[] mem, int ip, byte color, int energy) {
+        public P(World world, int coords, byte[] mem, int memlength, int ip, byte color, int energy) {
             this.world = world;
             this.coords = coords;
             this.mem = mem;
+            this.memlength = memlength;
             this.ip = ip;
             this.color = color;
             this.energy = energy;
         }
 
         void execOne() {
-            if (energy <= 0 || mem.length == 0) {
+            if (energy <= 0 || memlength == 0) {
                 die();
                 return;
             }
@@ -115,20 +169,28 @@ public class Main {
                     to = getIndex(to);
                     if (from != to) {
                         if (cmdExtra > 7) {
-                            int maxlen = min(min(mem.length - from, mem.length - to), abs(from - to));
+                            int maxlen = min(min(memlength - from, memlength - to), abs(from - to));
                             length = min(length, maxlen);
                             arraycopy(mem, from, mem, to, length);
                         } else {
-                            int maxlen = min(min(mem.length - from, mem.length - to), MAX_MEM);
+                            int maxlen = min(min(memlength - from, memlength - to), MAX_MEM);
                             if (to > from) {
                                 maxlen = min(maxlen, to - from);
                             }
                             length = min(length, maxlen);
-                            byte[] newmem = new byte[mem.length + length];
-                            arraycopy(mem, 0, newmem, 0, to);
-                            arraycopy(mem, from, newmem, to, length);
-                            arraycopy(mem, to, newmem, to + length, mem.length - to);
-                            mem = newmem;
+                            if (length > 0) {
+                                byte[] newmem;
+                                if (memlength + length > mem.length) {
+                                    newmem = new byte[memlength + length];
+                                    arraycopy(mem, 0, newmem, 0, to);
+                                } else {
+                                    newmem = mem;
+                                }
+                                arraycopy(mem, from, newmem, to, length);
+                                arraycopy(mem, to, newmem, to + length, memlength - to);
+                                memlength += length;
+                                mem = newmem;
+                            }
                         }
                     }
                     break;
@@ -136,18 +198,14 @@ public class Main {
                 case DELETE: {
                     int length = nextByte();
                     int index = getIndex(nextByte());
-                    length = min(length, mem.length - index);
+                    length = min(length, memlength - index);
                     if (length > 0) {
-                        byte[] newmem = new byte[mem.length - length];
-                        if (index > 0) {
-                            arraycopy(mem, 0, newmem, 0, index);
-                        }
-                        int remlen = mem.length - index - length;
+                        int remlen = memlength - index - length;
                         if (remlen > 0) {
-                            arraycopy(mem, index + length, newmem, index, remlen);
+                            arraycopy(mem, index + length, mem, index, remlen);
                         }
-                        mem = newmem;
-                        if (ip >= newmem.length) ip = 0;
+                        memlength -= length;
+                        if (ip >= memlength) ip = 0;
                     }
                     break;
                 }
@@ -178,17 +236,26 @@ public class Main {
                     int length = nextByte();
                     if (length > 0) {
                         byte[] msg = read(dx[cmdExtra & 7], dy[cmdExtra & 7]);
+                        int msglen = 0xff & msg[0];
                         to = getIndex(to);
                         if (cmdExtra > 7) {
-                            length = min(msg.length, min(length, mem.length - to));
-                            arraycopy(msg, 0, mem, to, length);
+                            length = min(msglen, min(length, memlength - to));
+                            arraycopy(msg, 1, mem, to, length);
                         } else {
-                            length = min(length, msg.length);
-                            byte[] newmem = new byte[mem.length + length];
-                            arraycopy(mem, 0, newmem, 0, to);
-                            arraycopy(msg, 0, newmem, to, length);
-                            arraycopy(mem, to, newmem, to + length, mem.length - to);
-                            mem = newmem;
+                            length = min(MAX_MEM - memlength, min(length, msglen));
+                            if (length > 0) {
+                                byte[] newmem;
+                                if (memlength + length > mem.length) {
+                                    newmem = new byte[memlength + length];
+                                    arraycopy(mem, 0, newmem, 0, to);
+                                } else {
+                                    newmem = mem;
+                                }
+                                arraycopy(msg, 1, newmem, to, length);
+                                arraycopy(mem, to, newmem, to + length, memlength - to);
+                                memlength += length;
+                                mem = newmem;
+                            }
                         }
                     }
                     break;
@@ -196,7 +263,7 @@ public class Main {
                 case WRITE: {
                     int length = nextByte();
                     int from = getIndex(nextByte());
-                    length = min(length, mem.length - from);
+                    length = min(length, memlength - from);
                     write(mem, from, length);
                     break;
                 }
@@ -217,10 +284,10 @@ public class Main {
                     break;
                 }
                 case CLONE: {
-                    int i = min(nextByte(), mem.length - 1);
+                    int i = min(nextByte(), memlength - 1);
                     byte c = (byte) (nextByte() % COLOR_COUNT);
                     int e = energy * (cmdExtra + 1) / 17;
-                    clone(dx[cmdExtra], dy[cmdExtra], mem, i, c, e);
+                    clone(dx[cmdExtra], dy[cmdExtra], mem, memlength, i, c, e);
                     break;
                 }
                 case RND: {
@@ -240,8 +307,8 @@ public class Main {
             world.shoot(this, dx, dy, e);
         }
 
-        private void clone(int dx, int dy, byte[] mem, int ip, byte color, int e) {
-            world.clone(this, dx, dy, mem, ip, color, e);
+        private void clone(int dx, int dy, byte[] mem, int memlength, int ip, byte color, int e) {
+            world.clone(this, dx, dy, mem, memlength, ip, color, e);
         }
 
         private void putEnergy(int e) {
@@ -257,7 +324,7 @@ public class Main {
         }
 
         private void write(byte[] mem, int from, int length) {
-            world.write(this, Arrays.copyOfRange(mem, from, from + length));
+            world.write(this, mem, from, length);
         }
 
         private byte[] read(int dx, int dy) {
@@ -277,8 +344,8 @@ public class Main {
         }
 
         private int getIndex(int offset) {
-            int index = (ip + offset) % mem.length;
-            if (index < 0) index+= mem.length;
+            int index = (ip + offset) % memlength;
+            if (index < 0) index += memlength;
             return index;
         }
 
@@ -290,42 +357,7 @@ public class Main {
 
         private void incip() {
             ip++;
-            ip %= mem.length;
-        }
-    }
-
-    public static void main(String[] args) throws InterruptedException {
-        JFrame frame = new JFrame("l2");
-        frame.setBounds(0, 0, SIZE, SIZE);
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        BufferedImage image = new BufferedImage(SIZE, SIZE, BufferedImage.TYPE_INT_ARGB);
-        frame.setVisible(true);
-        int rgb = Color.GREEN.getRGB();
-        System.out.println("rgb = " + Integer.toHexString(rgb));
-
-        frame.setContentPane(new JLabel(new ImageIcon(image)));
-        frame.pack();
-
-        World world = new World(SIZE);
-
-        world.createRandom(SIZE*SIZE/10);
-
-        world.randomizeEnergy();
-
-        long startTime = System.currentTimeMillis();
-        int gen = 0;
-        while (true) {
-
-            world.update();
-
-            world.draw(image);
-
-            frame.repaint();
-            gen++;
-            if (gen % 100 == 0) {
-                System.out.println("gen = " + gen);
-                System.out.println("fps =  " + gen * 1000.0 / (System.currentTimeMillis() - startTime));
-            }
+            ip %= memlength;
         }
     }
 
@@ -334,6 +366,7 @@ public class Main {
         private final Cell[] map;
         private final LinkedList<P> list = new LinkedList<>();
         private final LinkedList<P> tmplist = new LinkedList<>();
+        private final int[] sources;
 
         public World(int size) {
             this.size = size;
@@ -341,35 +374,47 @@ public class Main {
             for (int i = 0; i < map.length; i++) {
                 map[i] = new Cell();
             }
+            sources = new int[size * size / 10000];
+            for (int i = 0; i < sources.length; i++) {
+                sources[i] = RANDOM.nextInt(map.length);
+
+            }
         }
 
         void createRandom(int count) {
             for (int i = 0; i < count; i++) {
                 int coords = RANDOM.nextInt(map.length);
-                byte[] mem = new byte[RANDOM.nextInt(MAX_MEM)+1];
+                byte[] mem = new byte[RANDOM.nextInt(MAX_MEM) + 1];
                 RANDOM.nextBytes(mem);
                 int ip = RANDOM.nextInt(mem.length);
-                create(coords, mem, ip, (byte) RANDOM.nextInt(COLOR_COUNT), RANDOM.nextInt(MAX_ENERGY));
+                create(coords, mem, mem.length, ip, (byte) RANDOM.nextInt(COLOR_COUNT), RANDOM.nextInt(MAX_ENERGY));
             }
         }
 
         void randomizeEnergy() {
             for (Cell cell : map) {
-                cell.energy = RANDOM.nextInt(MAX_ENERGY/10);
+                cell.energy = RANDOM.nextInt(MAX_ENERGY / 10);
             }
         }
 
-        public void draw(BufferedImage image) {
+        public void draw(boolean mode, BufferedImage image) {
             for (int i = 0; i < size; i++) {
                 for (int j = 0; j < size; j++) {
                     int coords = getCoords(i, j);
                     Cell cell = map[coords];
-                    if (cell.p == null) {
-                        int b = cell.energy * 256 / MAX_ENERGY;
-                        int rgb = 0xff000000 | (b<<16) | (b<<8) | b;
+                    if (mode) {
+                        int e = cell.p == null ? cell.energy : (cell.energy + cell.p.energy);
+                        int b = min(255, e * 6000 / MAX_ENERGY);
+                        int rgb = 0xff000000 | (b << 16) | (b << 8) | b;
                         image.setRGB(i, j, rgb);
                     } else {
-                        image.setRGB(i, j, COLORS[cell.p.color]);
+                        if (cell.p == null) {
+                            int b = min(255, cell.energy * 600 / MAX_ENERGY);
+                            int rgb = 0xff000000 | (b << 16) | (b << 8) | b;
+                            image.setRGB(i, j, rgb);
+                        } else {
+                            image.setRGB(i, j, COLORS[cell.p.color]);
+                        }
                     }
                 }
             }
@@ -395,21 +440,23 @@ public class Main {
         }
 
         private void diffuse() {
-            for (int i = 0; i < map.length / 100; i++) {
+            for (int i = 0; i < map.length / 10; i++) {
                 int coords1 = RANDOM.nextInt(map.length);
                 int coords2 = getCoords(coords1, RANDOM.nextInt(11) - 5, RANDOM.nextInt(11) - 5);
                 Cell cell1 = map[coords1];
                 Cell cell2 = map[coords2];
-                int e = (cell1.energy + cell2.energy) / 2;
                 int de = (cell1.energy - cell2.energy) / 4;
-                cell1.energy = e + de;
-                cell2.energy = e - de;
+                cell1.energy -= de;
+                cell2.energy += de;
             }
         }
 
         private void fountain() {
-            Cell cell = map[getCoords(RANDOM.nextInt(10), RANDOM.nextInt(10))];
-            cell.energy = min(MAX_ENERGY, cell.energy + RANDOM.nextInt(10));
+            for (int i = 0; i < sources.length; i++) {
+                sources[i] = getCoords(sources[i], RANDOM.nextInt(3) - 1, RANDOM.nextInt(3) - 1);
+                Cell cell = map[getCoords(sources[i], RANDOM.nextInt(10), RANDOM.nextInt(10))];
+                cell.energy = min(MAX_ENERGY, cell.energy + RANDOM.nextInt(MAX_ENERGY / 1000));
+            }
         }
 
         private int getY(int coords) {
@@ -425,24 +472,24 @@ public class Main {
         }
 
         public void shoot(P p, int dx, int dy, int e) {
-            if ( e > 0) {
+            if (e > 0) {
                 Cell cell = map[getCoords(p.coords, dx, dy)];
                 if (cell.p != null) {
-                    cell.p.energy -= RANDOM.nextInt(e);
+                    cell.p.energy -= RANDOM.nextInt(e * 10);
                 }
             }
         }
 
-        public void clone(P p, int dx, int dy, byte[] mem, int ip, byte color, int e) {
+        public void clone(P p, int dx, int dy, byte[] mem, int memlength, int ip, byte color, int e) {
             int coords = getCoords(p.coords, dx, dy);
-            byte[] mem1 = copyOf(mem, mem.length);
-            create(coords, mem1, ip, color, e);
+            byte[] mem1 = copyOf(mem, memlength);
+            create(coords, mem1, memlength, ip, color, e);
         }
 
-        private void create(int coords, byte[] mem, int ip, byte color, int e) {
+        private void create(int coords, byte[] mem, int memlength, int ip, byte color, int e) {
             Cell cell = map[coords];
             if (cell.p == null) {
-                cell.p = new P(this, coords, mem, ip, color, e);
+                cell.p = new P(this, coords, mem, memlength, ip, color, e);
                 tmplist.add(cell.p);
             }
         }
@@ -469,8 +516,9 @@ public class Main {
             return map[p.coords].energy;
         }
 
-        public void write(P p, byte[] bytes) {
-            map[p.coords].info = bytes;
+        public void write(P p, byte[] bytes, int from, int length) {
+            map[p.coords].info[0] = (byte) length;
+            System.arraycopy(bytes, from, map[p.coords].info, 1, length);
         }
 
         public byte[] read(P p, int dx, int dy) {
@@ -497,13 +545,14 @@ public class Main {
 
         public byte getColor(P p, int dx, int dy) {
             Cell cell = map[getCoords(p.coords, dx, dy)];
-            return (byte) (cell.p==null ? 255 : cell.p.color);
+            return (byte) (cell.p == null ? 255 : cell.p.color);
         }
 
         private class Cell {
             public P p;
             public int energy;
-            public byte[] info = EMPTY;
+            public byte[] info = new byte[256];
         }
     }
+
 }
