@@ -18,16 +18,18 @@ import static java.util.Arrays.copyOf;
 public class Main {
 
     public static final int SIZE = 300;
-    public static final int ENERGY_PLUS = 10000;
+    public static final int ENERGY_PLUS = 3000;
     public static final int SOURCE_DENSITY = 30000;
-    public static final int DIFFUSE_FACTOR = 10;
+    public static final int DIFFUSE_FACTOR = 50;
     public static final Color[] BASE_COLORS = new Color[]{Color.GREEN, Color.BLUE, Color.CYAN, Color.MAGENTA, Color.ORANGE, Color.PINK, Color.RED, Color.YELLOW};
     @SuppressWarnings("PointlessArithmeticExpression")
-    public static final Random RANDOM = new Random(0L + System.currentTimeMillis());
+    public static final Random RANDOM = new Random(0L /*+ System.currentTimeMillis()*/);
     public static final int[] dx = {0, 1, 1, 1, 0, -1, -1, -1, 0, 2, 2, 2, 0, -2, -2, -2};
     public static final int[] dy = {-1, -1, 0, 1, 1, 1, 0, -1, -2, -2, 0, 2, 2, 2, 0, -2};
-    private static final int MAX_ENERGY = 100000;
     private static final int MAX_MEM = 50000;
+    private static final int MAX_ENERGY = 100000;
+    public static final int MUTATION_RATE = MAX_ENERGY * min(MAX_MEM / 10, Integer.MAX_VALUE / MAX_ENERGY);
+    private static final long MAX_P = Runtime.getRuntime().maxMemory() / MAX_MEM / 3;
     private static final int COLOR_COUNT;
     private static final int[] COLORS;
 
@@ -43,13 +45,12 @@ public class Main {
     }
 
     public static void main(String[] args) throws InterruptedException {
+        System.out.println("MAX_P = " + MAX_P);
         JFrame frame = new JFrame("l2");
         frame.setBounds(0, 0, SIZE, SIZE);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         BufferedImage image = new BufferedImage(SIZE, SIZE, BufferedImage.TYPE_INT_ARGB);
         frame.setVisible(true);
-        int rgb = Color.GREEN.getRGB();
-        System.out.println("rgb = " + Integer.toHexString(rgb));
 
         frame.setContentPane(new JLabel(new ImageIcon(image)));
         final int[] mode = {0};
@@ -75,7 +76,7 @@ public class Main {
 
         World world = new World(SIZE);
 
-        world.createRandom(100);
+        world.createRandom(MAX_P / 3);
 
         world.randomizeEnergy();
 
@@ -94,7 +95,12 @@ public class Main {
             frames++;
             if (frames >= 100) {
                 long now = System.currentTimeMillis();
-                System.out.printf("%d\t%d\t%d\t%d\t%d\t%d\n", gen, frames * 1000 / (now - startTime), world.list.size(), totalEnergy, maxage, world.maxgen);
+                long totalMemory = Runtime.getRuntime().totalMemory();
+                long maxMemory = Runtime.getRuntime().maxMemory();
+                long freeMem = Runtime.getRuntime().freeMemory();
+                double freePercent = 100.0 * freeMem / totalMemory;
+                Runtime.getRuntime().gc();
+                System.out.printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%f\n", gen, frames * 1000 / (now - startTime), world.list.size(), totalEnergy, maxage, world.maxgen, freeMem, totalMemory, maxMemory, freePercent);
                 startTime = now;
                 frames = 0;
             }
@@ -118,9 +124,9 @@ public class Main {
         private static final int CLONE = 13;
         private static final int RND = 14;
         private static final int SHOOT = 15;
-        final int generation;
         private final World world;
         public int coords;
+        int generation;
         byte[] mem;
         int memlength;
         int ip;
@@ -192,6 +198,7 @@ public class Main {
                             if (length > 0) {
                                 byte[] newmem;
                                 if (memlength + length > mem.length) {
+                                    if (Runtime.getRuntime().freeMemory() < 10 * MAX_MEM) break;
                                     newmem = new byte[memlength + length];
                                     arraycopy(mem, 0, newmem, 0, to);
                                 } else {
@@ -258,6 +265,7 @@ public class Main {
                             if (length > 0) {
                                 byte[] newmem;
                                 if (memlength + length > mem.length) {
+                                    if (Runtime.getRuntime().freeMemory() < 10 * MAX_MEM) break;
                                     newmem = new byte[memlength + length];
                                     arraycopy(mem, 0, newmem, 0, to);
                                 } else {
@@ -299,8 +307,8 @@ public class Main {
                 case CLONE: {
                     int i = min(nextByte(), memlength - 1);
                     byte c = (byte) (nextByte() % COLOR_COUNT);
-                    int e = energy * (cmdExtra + 1) / 17;
-                    clone(dx[cmdExtra], dy[cmdExtra], mem, memlength, i, c, e);
+                    int e = energy * ((cmdExtra & 7) + 1) / 9;
+                    clone(dx[cmdExtra], dy[cmdExtra], mem, memlength, i, c, e, cmdExtra > 7);
                     energy -= e;
                     energy -= 20;
                     break;
@@ -322,8 +330,8 @@ public class Main {
             world.shoot(this, dx, dy, e);
         }
 
-        private void clone(int dx, int dy, byte[] mem, int memlength, int ip, byte color, int e) {
-            world.clone(this, dx, dy, mem, memlength, ip, color, e);
+        private void clone(int dx, int dy, byte[] mem, int memlength, int ip, byte color, int e, boolean okToAppend) {
+            world.clone(this, dx, dy, mem, memlength, ip, color, e, okToAppend);
         }
 
         private void putEnergy(int e) {
@@ -400,6 +408,7 @@ public class Main {
         }
 
         void createRandom(double count) {
+            if (Runtime.getRuntime().freeMemory() < 10 * MAX_MEM) return;
             for (int i = 0; i < count; i++) {
                 if (RANDOM.nextInt((int) Math.ceil(1 / count)) == 0) {
                     int coords = RANDOM.nextInt(map.length);
@@ -414,7 +423,7 @@ public class Main {
                         RANDOM.nextBytes(mem);
                     }
                     int ip = RANDOM.nextInt(mem.length);
-                    create(coords, mem, mem.length, ip, (byte) RANDOM.nextInt(COLOR_COUNT), RANDOM.nextInt(ENERGY_PLUS * 10), 0);
+                    createOrAppend(coords, mem, mem.length, ip, (byte) RANDOM.nextInt(COLOR_COUNT), RANDOM.nextInt(ENERGY_PLUS * 10), 0, RANDOM.nextBoolean());
                 }
             }
             addTempList();
@@ -460,7 +469,7 @@ public class Main {
 
             diffuse();
 
-            createRandom(.1);
+            createRandom(1.0 / (list.size() + 1));
 
             return liveOne();
 
@@ -476,12 +485,19 @@ public class Main {
                     iterator.remove();
                     continue;
                 }
+
                 if (RANDOM.nextInt(100) == 0) {
                     System.arraycopy(p.mem, 0, scratchpad, RANDOM.nextInt(scratchpad.length - p.memlength), p.memlength);
                     scratchpad[RANDOM.nextInt(scratchpad.length)] = (byte) RANDOM.nextInt(256);
                 }
 
+                if (p.memlength > 0 && map[p.coords].energy > 0 && RANDOM.nextInt(1 + MUTATION_RATE / map[p.coords].energy / p.memlength) == 0) {
+                    p.mem[RANDOM.nextInt(p.memlength)] ^= (1 << RANDOM.nextInt(8));
+                }
+
+
                 p.execOne();
+
                 if (p.age > maxage) {
                     maxage = p.age;
                 }
@@ -497,12 +513,12 @@ public class Main {
         }
 
         private void diffuse() {
-            for (int i = 0; i < map.length / 10; i++) {
+            for (int i = 0; i < map.length / DIFFUSE_FACTOR; i++) {
                 int coords1 = RANDOM.nextInt(map.length);
                 int coords2 = getCoords(coords1, RANDOM.nextInt(11) - 5, RANDOM.nextInt(11) - 5);
                 Cell cell1 = map[coords1];
                 Cell cell2 = map[coords2];
-                int de = (cell1.energy - cell2.energy) / DIFFUSE_FACTOR;
+                int de = (cell1.energy - cell2.energy) / 2;
                 cell1.energy -= de;
                 cell2.energy += de;
             }
@@ -511,7 +527,9 @@ public class Main {
         private void fountain() {
 //            maxenergy = 0;
             for (int i = 0; i < sources.length; i++) {
-                sources[i] = getCoords(sources[i], RANDOM.nextInt(3) - 1, RANDOM.nextInt(3) - 1);
+                if (RANDOM.nextInt(DIFFUSE_FACTOR) == 0) {
+                    sources[i] = getCoords(sources[i], RANDOM.nextInt(3) - 1, RANDOM.nextInt(3) - 1);
+                }
                 Cell cell = map[getCoords(sources[i], RANDOM.nextInt(10), RANDOM.nextInt(10))];
                 cell.energy = min(MAX_ENERGY, cell.energy + RANDOM.nextInt(ENERGY_PLUS));
 //                if (cell.energy>maxenergy) maxenergy = cell.energy;
@@ -541,17 +559,31 @@ public class Main {
             }
         }
 
-        public void clone(P p, int dx, int dy, byte[] mem, int memlength, int ip, byte color, int e) {
+        public void clone(P p, int dx, int dy, byte[] mem, int memlength, int ip, byte color, int e, boolean okToAppend) {
             int coords = getCoords(p.coords, dx, dy);
-            byte[] mem1 = copyOf(mem, memlength);
-            create(coords, mem1, memlength, ip, color, e, p.generation + 1);
+            createOrAppend(coords, mem, memlength, ip, color, e, p.generation + 1, okToAppend);
         }
 
-        private void create(int coords, byte[] mem, int memlength, int ip, byte color, int e, int generation) {
+        private void createOrAppend(int coords, byte[] mem, int memlength, int ip, byte color, int e, int generation, boolean okToAppend) {
+            if (Runtime.getRuntime().freeMemory() < 10 * MAX_MEM || list.size() > MAX_P) return;
             Cell cell = map[coords];
             if (cell.p == null) {
-                cell.p = new P(this, coords, mem, memlength, ip, color, e, generation);
+                cell.p = new P(this, coords, copyOf(mem, memlength), memlength, ip, color, e / 2, generation);
                 tmplist.add(cell.p);
+            } else if (okToAppend) {
+                int length = min(memlength, MAX_MEM - cell.p.memlength);
+                if (cell.p.memlength + length > cell.p.mem.length) {
+                    byte[] newmem = new byte[cell.p.memlength + length];
+                    arraycopy(cell.p.mem, 0, newmem, 0, cell.p.memlength);
+                    arraycopy(mem, 0, newmem, cell.p.memlength, length);
+                    cell.p.mem = newmem;
+                    cell.p.memlength += length;
+                } else {
+                    arraycopy(mem, 0, cell.p.mem, cell.p.memlength, length);
+                    cell.p.memlength += length;
+                }
+                cell.p.energy = min(MAX_ENERGY, cell.p.energy + e / 2);
+                if (cell.p.generation < generation) cell.p.generation = generation;
             }
         }
 
