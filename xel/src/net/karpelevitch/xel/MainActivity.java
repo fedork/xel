@@ -6,8 +6,12 @@ import android.os.Bundle;
 import android.renderscript.*;
 import android.util.Log;
 import android.view.TextureView;
+import net.karpelevitch.l2.EnergyField;
 import net.karpelevitch.l2.World;
 
+import java.util.Arrays;
+
+import static java.lang.Math.max;
 import static java.lang.Math.min;
 
 public class MainActivity extends Activity implements TextureView.SurfaceTextureListener {
@@ -20,6 +24,8 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
     private static final Paint[] WHITES;
     private static final int[] COLORS;
     private static final int[] WHITE_RGB;
+    private static final long FRAME_INTERVAL = 1000L / 30;
+    private static final long MAX_FRAME_INTERVAL = 1000L;
 
     static {
         int COLOR_COUNT = BASE_COLORS.length * 3;
@@ -53,9 +59,9 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
 
     private static int darker(int color) {
         return Color.argb(Color.alpha(color),
-                Math.max((int) (Color.red(color) * FACTOR), 0),
-                Math.max((int) (Color.green(color) * FACTOR), 0),
-                Math.max((int) (Color.blue(color) * FACTOR), 0));
+                max((int) (Color.red(color) * FACTOR), 0),
+                max((int) (Color.green(color) * FACTOR), 0),
+                max((int) (Color.blue(color) * FACTOR), 0));
     }
 
 
@@ -71,6 +77,14 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
 
 
     }
+
+    @Override
+    protected void onPause() {
+        Log.d("Xel", "onPause!");
+        if (mThread != null) mThread.stopRendering();
+        super.onPause();
+    }
+
 
     @Override
     public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
@@ -102,7 +116,53 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
 
         public RenderingThread(TextureView surface) {
             mSurface = surface;
-            world = new World(SIZE, PAINTS.length);
+            world = new World(SIZE, PAINTS.length) {
+                @Override
+                protected EnergyField createEnergyField(final int size) {
+                    RenderScript rs = RenderScript.create(MainActivity.this);
+                    Element f32 = Element.F32(rs);
+
+//                    ScriptIntrinsic
+
+                    final ScriptIntrinsicConvolve3x3 script = ScriptIntrinsicConvolve3x3.create(rs, f32);
+                    float c22 = 1.0f - 1.0f / World.DIFFUSE_FACTOR;
+                    float cx = (1.0f - c22) / 8;
+                    float[] coefficients = new float[9];
+                    Arrays.fill(coefficients, cx);
+                    coefficients[4] = c22;
+                    script.setCoefficients(coefficients);
+                    Type xy = Type.createXY(rs, f32, size + 2, size + 2);
+                    final Allocation ain = Allocation.createTyped(rs, xy);
+                    final Allocation aout = Allocation.createTyped(rs, xy);
+                    return new EnergyField() {
+                        final float[] energy = new float[(size + 2) * (size + 2)];
+
+                        @Override
+                        public void putEnergy(int coords, int e) {
+                            int newcoords = coords / size * 2 + coords + size + 3;
+                            energy[newcoords] = max(0, min(MAX_ENERGY, energy[newcoords] + e));
+                        }
+
+                        @Override
+                        public int readEnergy(int coords) {
+                            return (int) energy[coords / size * 2 + coords + size + 3];
+                        }
+
+                        @Override
+                        public void diffuse(World world) {
+                            ain.copyFrom(energy);
+                            ain.copy2DRangeFrom(0, 1, 1, size, ain, size, 1);
+                            ain.copy2DRangeFrom(size + 1, 1, 1, size, ain, 1, 1);
+                            ain.copy2DRangeFrom(0, 0, size + 2, 1, ain, 0, size);
+                            ain.copy2DRangeFrom(0, size + 1, size + 2, 1, ain, 0, 1);
+                            script.setInput(ain);
+                            script.forEach(aout);
+                            aout.copyTo(energy);
+
+                        }
+                    };
+                }
+            };
         }
 
         @Override
@@ -120,63 +180,38 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
 
 
             while (mRunning && !Thread.interrupted()) {
-                maxage[0] = world.update();
-                gen++;
-                frames++;
+                long nextFrame = System.currentTimeMillis();
+                long maxNextFrame = nextFrame + MAX_FRAME_INTERVAL;
+                draw(totalEnergy);
+                long sleepTime;
+                do {
+                    maxage[0] = world.update();
+                    nextFrame += FRAME_INTERVAL;
+                    gen++;
+                    frames++;
+                }
+                while (0 > (sleepTime = nextFrame - System.currentTimeMillis()) && System.currentTimeMillis() < maxNextFrame);
+                if (sleepTime > 0) {
+                    try {
+                        Thread.sleep(sleepTime);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                        break;
+                    }
+                }
                 long now;
-                if ((now = System.currentTimeMillis()) - startTime > 1000) {
-                    draw(totalEnergy);
+                if ((now = System.currentTimeMillis()) - startTime > 100) {
                     long totalMemory = Runtime.getRuntime().totalMemory();
                     long maxMemory = Runtime.getRuntime().maxMemory();
                     long freeMem = Runtime.getRuntime().freeMemory();
                     double freePercent = 100.0 * freeMem / totalMemory;
 //                    Runtime.getRuntime().gc();
                     Log.d("Xel", String.format("%d \t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%f\n", gen, frames * 1000 / (now - startTime), world.list.size(), totalEnergy[0], maxage[0], world.maxgen, freeMem, totalMemory, maxMemory, freePercent));
-                    startTime = now;
+                    startTime = System.currentTimeMillis();
+//                    startTime = now;
                     frames = 0;
                 }
             }
-        }
-
-        private void diffuse() {
-            RenderScript rs = RenderScript.create(MainActivity.this);
-            Element f32 = Element.F32(rs);
-            ScriptIntrinsicConvolve3x3 script = ScriptIntrinsicConvolve3x3.create(rs, f32);
-            script.setCoefficients(new float[]{
-                    .01f, .015f, .01f,
-                    .015f, .9f, .015f,
-                    .01f, .015f, .01f});
-            Type xy = Type.createXY(rs, f32, 12, 12);
-            Allocation ain = Allocation.createTyped(rs, xy);
-            Allocation aout = Allocation.createTyped(rs, xy);
-            float[] arr = new float[144];
-            arr[12 * 6 + 1] = 1.0f;
-            while (System.currentTimeMillis() > 0) {
-                ain.copyFrom(arr);
-                ain.copy2DRangeFrom(0, 1, 1, 10, ain, 10, 1);
-                ain.copy2DRangeFrom(11, 1, 1, 10, ain, 1, 1);
-                ain.copy2DRangeFrom(0, 0, 12, 1, ain, 0, 10);
-                ain.copy2DRangeFrom(0, 11, 12, 1, ain, 0, 1);
-                script.setInput(ain);
-                script.forEach(aout);
-                aout.copyTo(arr);
-                for (int i = 1; i < 11; i++) {
-                    for (int j = 1; j < 11; j++) {
-                        System.out.print(arr[i * 12 + j] + "\t");
-                    }
-                    System.out.println();
-                }
-                System.out.println();
-
-/*
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-*/
-            }
-//            Allocation.createSized(rs, )
         }
 
         private void draw(int[] totalEnergy) {
@@ -219,7 +254,12 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
 
             @Override
             public void done() {
-                this.canvas.drawBitmap(bitmap, 0, 0, null);
+
+                Matrix matrix = new Matrix();
+
+                float scale = (float) min(canvas.getWidth(), canvas.getHeight()) / bitmap.getWidth();
+                matrix.setScale(scale, scale);
+                this.canvas.drawBitmap(bitmap, matrix, null);
             }
         }
 

@@ -58,6 +58,7 @@ public class Main {
         long startTime = System.currentTimeMillis();
         int gen = 0;
         int frames = 0;
+        int print = 0;
         //noinspection InfiniteLoopStatement
         while (true) {
 
@@ -66,8 +67,9 @@ public class Main {
 
             gen++;
             frames++;
+            print++;
             long now;
-            if (frames >= 10 && (now = System.currentTimeMillis()) - startTime > 100) {
+            if ((now = System.currentTimeMillis()) - startTime > 100) {
                 int totalEnergy = world.draw(mode[0] == 0, new World.RGBDraw() {
                     @Override
                     public void drawMono(int i, int j, int b) {
@@ -90,7 +92,10 @@ public class Main {
                 long freeMem = Runtime.getRuntime().freeMemory();
                 double freePercent = 100.0 * freeMem / totalMemory;
                 Runtime.getRuntime().gc();
-                System.out.printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%f\n", gen, frames * 1000 / (now - startTime), world.list.size(), totalEnergy, maxage, world.maxgen, freeMem, totalMemory, maxMemory, freePercent);
+                if (print >= 1000) {
+                    System.out.printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%f\n", gen, frames * 1000 / (now - startTime), world.list.size(), totalEnergy, maxage, world.maxgen, freeMem, totalMemory, maxMemory, freePercent);
+                    print = 0;
+                }
                 startTime = now;
                 frames = 0;
             }

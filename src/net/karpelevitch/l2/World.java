@@ -10,22 +10,21 @@ import static java.lang.Math.max;
 import static java.lang.Math.min;
 import static java.lang.System.arraycopy;
 import static java.util.Arrays.copyOf;
+import static net.karpelevitch.l2.EnergyField.MAX_ENERGY;
 
 public class World {
+    public static final int DIFFUSE_FACTOR = 3;
     static final int MAX_MEM = 20000;
     static final Random RANDOM = new Random(System.currentTimeMillis());
-    static final int MAX_ENERGY = 10000;
     private static final int MUTATION_RATE = 100;
-    private static final int DIFFUSE_FACTOR = 50;
     public final LinkedList<P> list = new LinkedList<>();
     final long MAX_P = Runtime.getRuntime().maxMemory() / MAX_MEM / 3;
-    private final int SOURCE_COUNT = 5;
-    private final int ENERGY_PLUS = 1000;
+    private final int ENERGY_PLUS = 10000;
     private final int size;
     private final Cell[] map;
-    private final int[] energy;
     private final LinkedList<P> tmplist = new LinkedList<>();
     private final int[] sources;
+    private final EnergyField ef;
     public int maxgen;
     private int colorCount;
     private int maxenergy = ENERGY_PLUS;
@@ -34,12 +33,12 @@ public class World {
     public World(int size, int colorCount) {
         this.size = size;
         this.colorCount = colorCount;
+        ef = createEnergyField(size);
         map = new Cell[size * size];
-        energy = new int[map.length];
         for (int i = 0; i < map.length; i++) {
             map[i] = new Cell();
         }
-        sources = new int[SOURCE_COUNT];
+        sources = new int[5];
         for (int i = 0; i < sources.length; i++) {
             sources[i] = RANDOM.nextInt(map.length);
         }
@@ -50,6 +49,33 @@ public class World {
         randomizeEnergy();
 
         System.out.println("MAX_P = " + MAX_P);
+    }
+
+    protected EnergyField createEnergyField(final int size) {
+        return new EnergyField() {
+            private final int[] energy = new int[size * size];
+
+            @Override
+            public void putEnergy(int coords, int e) {
+                energy[coords] = max(0, min(energy[coords] + e, MAX_ENERGY));
+            }
+
+            @Override
+            public int readEnergy(int coords) {
+                return energy[coords];
+            }
+
+            @Override
+            public void diffuse(World world) {
+                for (int i = 0; i < world.map.length / DIFFUSE_FACTOR; i++) {
+                    int coords1 = RANDOM.nextInt(world.map.length);
+                    int coords2 = world.getCoords(coords1, RANDOM.nextInt(11) - 5, RANDOM.nextInt(11) - 5);
+                    int de = (readEnergy(coords1) - readEnergy(coords2)) / 2;
+                    putEnergy(coords1, -de);
+                    putEnergy(coords2, de);
+                }
+            }
+        };
     }
 
     public int getColorCount() {
@@ -80,7 +106,7 @@ public class World {
 
     void randomizeEnergy() {
         for (int i = 0; i < map.length; i++) {
-            putEnergy(RANDOM.nextInt(ENERGY_PLUS), i);
+            ef.putEnergy(i, RANDOM.nextInt(ENERGY_PLUS));
         }
     }
 
@@ -91,9 +117,9 @@ public class World {
             for (int j = 0; j < size; j++) {
                 int coords = getCoords(i, j);
                 Cell cell = map[coords];
-                int e = readEnergy(coords);
+                int e = ef.readEnergy(coords);
                 totale += e;
-                int b = min(255, e * 256 / maxenergy);
+                int b = e * 256 / (MAX_ENERGY + 1);
                 if (mode) {
                     if (cell.p == null) {
                         rgbDraw.drawMono(i, j, b);
@@ -114,7 +140,7 @@ public class World {
     public int update() {
         fountain();
 
-        diffuse();
+        ef.diffuse(this);
 
         createRandom(10.0 / (list.size() + 1));
 
@@ -169,25 +195,14 @@ public class World {
         tmplist.clear();
     }
 
-    private void diffuse() {
-        for (int i = 0; i < map.length / DIFFUSE_FACTOR; i++) {
-            int coords1 = RANDOM.nextInt(map.length);
-            int coords2 = getCoords(coords1, RANDOM.nextInt(11) - 5, RANDOM.nextInt(11) - 5);
-            int de = (readEnergy(coords1) - readEnergy(coords2)) / 2;
-            putEnergy(-de, coords1);
-            putEnergy(de, coords2);
-        }
-    }
-
     private void fountain() {
 //            maxenergy = 0;
         for (int i = 0; i < sources.length; i++) {
             if (RANDOM.nextInt(DIFFUSE_FACTOR) == 0) {
                 sources[i] = getCoords(sources[i], RANDOM.nextInt(3) - 1, RANDOM.nextInt(3) - 1);
             }
-            Cell cell = map[getCoords(sources[i], RANDOM.nextInt(10), RANDOM.nextInt(10))];
-            putEnergy(RANDOM.nextInt(ENERGY_PLUS), getCoords(sources[i], RANDOM.nextInt(10), RANDOM.nextInt(10)));
-            putEnergy(-RANDOM.nextInt(ENERGY_PLUS), RANDOM.nextInt(map.length));
+            ef.putEnergy(getCoords(sources[i], RANDOM.nextInt(10), RANDOM.nextInt(10)), RANDOM.nextInt(ENERGY_PLUS));
+//            ef.putEnergy(RANDOM.nextInt(map.length), -RANDOM.nextInt(ENERGY_PLUS));
         }
     }
 
@@ -221,6 +236,7 @@ public class World {
 //        if (Runtime.getRuntime().freeMemory() < 10 * MAX_MEM || list.size() > MAX_P) return;
         Cell cell = map[coords];
         if (cell.p == null) {
+            if (list.size() + tmplist.size() > MAX_P) return;
             cell.p = new P(this, coords, copyOf(mem, memlength), memlength, ip, color, e / 2, generation);
             tmplist.add(cell.p);
         } else if (okToAppend) {
@@ -246,17 +262,13 @@ public class World {
         return getCoords(x, y);
     }
 
-    public void putEnergy(P p, int e) {
-        putEnergy(e, p.coords);
-    }
-
-    public void putEnergy(int e, int coords) {
-        energy[coords] = max(0, min(energy[coords] + e, MAX_ENERGY));
+    public void putEnergy(P p, int dx, int dy, int e) {
+        ef.putEnergy(getCoords(p.coords, dx, dy), e);
     }
 
     public int getEnergy(P p, int e) {
         e = min(e, readEnergy(p));
-        putEnergy(p, -e);
+        ef.putEnergy(p.coords, -e);
         return e;
     }
 
@@ -264,8 +276,12 @@ public class World {
         return readEnergy(p.coords);
     }
 
+    public int readEnergy(P p, int dx, int dy) {
+        return readEnergy(getCoords(p.coords, dx, dy));
+    }
+
     public int readEnergy(int coords) {
-        return energy[coords];
+        return ef.readEnergy(coords);
     }
 
     public void write(P p, byte[] bytes, int from, int length) {

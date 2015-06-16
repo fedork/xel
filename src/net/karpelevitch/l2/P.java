@@ -3,6 +3,7 @@ package net.karpelevitch.l2;
 import static java.lang.Math.abs;
 import static java.lang.Math.min;
 import static java.lang.System.arraycopy;
+import static net.karpelevitch.l2.EnergyField.MAX_ENERGY;
 
 class P {
     public static final int[] dx = {0, 1, 1, 1, 0, -1, -1, -1, 0, 2, 2, 2, 0, -2, -2, -2};
@@ -55,10 +56,7 @@ class P {
         int cmdExtra = cmd & 0xf;
         switch (cmd >>> 4) {
             case INC:
-                mem[getIndex(nextByte())] += cmdExtra;
-                break;
-            case DEC:
-                mem[getIndex(nextByte())] -= cmdExtra;
+                mem[getIndex(nextByte())] += (cmdExtra - 8);
                 break;
             case SHIFT:
                 if (cmdExtra > 7) {
@@ -106,8 +104,13 @@ class P {
             }
 
             case READCOLOR: {
-                int index = getIndex(nextByte());
-                mem[index] = getColor(dx[cmdExtra], dy[cmdExtra]);
+                byte thatcolor = getColor(dx[cmdExtra], dy[cmdExtra]);
+                int jump = nextByte();
+                int nextByte = nextByte();
+                byte cmpcolor = (byte) (nextByte == 255 ? 255 : (nextByte % (world.getColorCount())));
+                if (cmpcolor == thatcolor) {
+                    ip = getIndex(jump);
+                }
                 break;
             }
 
@@ -154,18 +157,41 @@ class P {
                 break;
             }
             case EAT: {
-                if (cmdExtra == 0) {
-                    int to = getIndex(nextByte());
-                    mem[to] = (byte) Integer.toBinaryString(energy).length();
-                } else if (cmdExtra == 8) {
-                    int to = getIndex(nextByte());
-                    mem[to] = (byte) Integer.toBinaryString(readEnergy()).length();
-                } else if (cmdExtra < 8) {
-                    energy -= (1 << cmdExtra) >>> 1;
-                    energy = Math.min(energy + getEnergy(1 << cmdExtra), World.MAX_ENERGY);
+                if (cmdExtra == 15) {
+                    // check my energy
+                    int curenergy = 4096 * energy / (MAX_ENERGY + 1);
+                    int cmpenergy = cmdExtra * 256 + nextByte();
+                    int offset = nextByte();
+                    if (curenergy < cmpenergy) {
+                        ip = getIndex(offset);
+                    }
+                } else if (cmdExtra == 14) {
+                    // read energy
+                    int nb = nextByte();
+                    int nb2 = nextByte();
+                    int offset = nextByte();
+                    boolean checkThis = (nb & 128) == 0;
+                    int dir = nb & 15;
+                    boolean rel = (nb & 64) == 0;
+                    int mul = (nb >>> 4) & 3;
+                    int energyread;
+                    if (checkThis)
+                        energyread = world.readEnergy(this);
+                    else if (rel)
+                        energyread = (MAX_ENERGY + world.readEnergy(this, dx[dir], dy[dir]) - world.readEnergy(this)) / 2;
+                    else
+                        energyread = world.readEnergy(this, dx[dir], dy[dir]);
+                    if (energyread * 1024 / (MAX_ENERGY + 1) < mul * 256 + nb2) {
+                        ip = getIndex(offset);
+                    }
+                } else if (cmdExtra > 7) {
+                    // get energy
+                    energy -= (1 << (cmdExtra - 7)) / 2;
+                    energy = Math.min(energy + getEnergy(1 << (cmdExtra - 7)), MAX_ENERGY);
                 } else {
-                    int de = min(energy, 1 << (cmdExtra & 7));
-                    putEnergy(de);
+                    // put energy
+                    int de = min(energy, nextByte() + 1);
+                    putEnergy(de, dx[cmdExtra], dy[cmdExtra]);
                     energy -= de;
                 }
                 break;
@@ -242,16 +268,12 @@ class P {
         world.clone(this, dx, dy, mem, memlength, ip, color, e, okToAppend);
     }
 
-    private void putEnergy(int e) {
-        world.putEnergy(this, e);
+    private void putEnergy(int e, int dx, int dy) {
+        world.putEnergy(this, dx, dy, e);
     }
 
     private int getEnergy(int e) {
         return world.getEnergy(this, e);
-    }
-
-    private int readEnergy() {
-        return world.readEnergy(this);
     }
 
     private void write(byte[] mem, int from, int length) {
