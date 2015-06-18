@@ -52,7 +52,7 @@ public class Main {
         });
         frame.pack();
 
-        World world = new World(SIZE, COLORS.length);
+        World world = new World(SIZE, SIZE, COLORS.length);
 
 
         long startTime = System.currentTimeMillis();

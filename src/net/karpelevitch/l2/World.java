@@ -14,13 +14,14 @@ import static net.karpelevitch.l2.EnergyField.MAX_ENERGY;
 
 public class World {
     public static final int DIFFUSE_FACTOR = 3;
-    static final int MAX_MEM = 20000;
+    static final int MAX_MEM = 3000;
     static final Random RANDOM = new Random(System.currentTimeMillis());
     private static final int MUTATION_RATE = 100;
     public final LinkedList<P> list = new LinkedList<>();
     final long MAX_P = Runtime.getRuntime().maxMemory() / MAX_MEM / 3;
-    private final int ENERGY_PLUS = 10000;
-    private final int size;
+    private final int ENERGY_PLUS = 30000;
+    private final int size_x;
+    private final int size_y;
     private final Cell[] map;
     private final LinkedList<P> tmplist = new LinkedList<>();
     private final int[] sources;
@@ -30,11 +31,12 @@ public class World {
     private int maxenergy = ENERGY_PLUS;
     private byte[] scratchpad = new byte[MAX_MEM * 100];
 
-    public World(int size, int colorCount) {
-        this.size = size;
+    public World(int size_x, int size_y, int colorCount) {
+        this.size_x = size_x;
+        this.size_y = size_y;
         this.colorCount = colorCount;
-        ef = createEnergyField(size);
-        map = new Cell[size * size];
+        ef = createEnergyField(size_x, size_y);
+        map = new Cell[size_x * size_y];
         for (int i = 0; i < map.length; i++) {
             map[i] = new Cell();
         }
@@ -51,9 +53,9 @@ public class World {
         System.out.println("MAX_P = " + MAX_P);
     }
 
-    protected EnergyField createEnergyField(final int size) {
+    protected EnergyField createEnergyField(final int size_x, final int size_y) {
         return new EnergyField() {
-            private final int[] energy = new int[size * size];
+            private final int[] energy = new int[size_x * size_y];
 
             @Override
             public void putEnergy(int coords, int e) {
@@ -113,8 +115,8 @@ public class World {
     public int draw(boolean mode, RGBDraw rgbDraw) {
         int totale = 0;
 //            int maxe = 0;
-        for (int i = 0; i < size; i++) {
-            for (int j = 0; j < size; j++) {
+        for (int i = 0; i < size_x; i++) {
+            for (int j = 0; j < size_y; j++) {
                 int coords = getCoords(i, j);
                 Cell cell = map[coords];
                 int e = ef.readEnergy(coords);
@@ -201,21 +203,21 @@ public class World {
             if (RANDOM.nextInt(DIFFUSE_FACTOR) == 0) {
                 sources[i] = getCoords(sources[i], RANDOM.nextInt(3) - 1, RANDOM.nextInt(3) - 1);
             }
-            ef.putEnergy(getCoords(sources[i], RANDOM.nextInt(10), RANDOM.nextInt(10)), RANDOM.nextInt(ENERGY_PLUS));
+            ef.putEnergy(getCoords(sources[i], RANDOM.nextInt(10), RANDOM.nextInt(10)), ENERGY_PLUS);
 //            ef.putEnergy(RANDOM.nextInt(map.length), -RANDOM.nextInt(ENERGY_PLUS));
         }
     }
 
     private int getY(int coords) {
-        return coords / size;
+        return coords / size_x;
     }
 
     private int getX(int coords) {
-        return coords % size;
+        return coords % size_x;
     }
 
     private int getCoords(int x, int y) {
-        return y * size + x;
+        return y * size_x + x;
     }
 
     public void shoot(P p, int dx, int dy, int e) {
@@ -257,8 +259,8 @@ public class World {
     }
 
     private int getCoords(int coords, int dx, int dy) {
-        int x = (getX(coords) + dx + size) % size;
-        int y = (getY(coords) + dy + size) % size;
+        int x = (getX(coords) + dx + size_x) % size_x;
+        int y = (getY(coords) + dy + size_y) % size_y;
         return getCoords(x, y);
     }
 
