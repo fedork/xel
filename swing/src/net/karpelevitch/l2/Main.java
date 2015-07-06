@@ -52,7 +52,7 @@ public class Main {
         });
         frame.pack();
 
-        World world = new World(SIZE, SIZE, COLORS.length);
+        World world = new World(SIZE, SIZE, COLORS.length, null);
 
 
         long startTime = System.currentTimeMillis();
@@ -70,7 +70,7 @@ public class Main {
             print++;
             long now;
             if ((now = System.currentTimeMillis()) - startTime > 100) {
-                int totalEnergy = world.draw(mode[0] == 0, new World.RGBDraw() {
+                world.draw(mode[0] == 0, new World.RGBDraw() {
                     @Override
                     public void drawMono(int i, int j, int b) {
                         int rgb = 0xff000000 | (b << 16) | (b << 8) | b;
@@ -93,7 +93,7 @@ public class Main {
                 double freePercent = 100.0 * freeMem / totalMemory;
                 Runtime.getRuntime().gc();
                 if (print >= 1000) {
-                    System.out.printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%f\n", gen, frames * 1000 / (now - startTime), world.list.size(), totalEnergy, maxage, world.maxgen, freeMem, totalMemory, maxMemory, freePercent);
+                    System.out.printf("%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%f\n", gen, frames * 1000 / (now - startTime), world.list.size(), maxage, world.maxgen, freeMem, totalMemory, maxMemory, freePercent);
                     print = 0;
                 }
                 startTime = now;

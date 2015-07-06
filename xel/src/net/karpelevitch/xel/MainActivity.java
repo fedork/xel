@@ -11,13 +11,13 @@ import android.view.TextureView;
 import static java.lang.Math.max;
 
 public class MainActivity extends Activity implements TextureView.SurfaceTextureListener {
-    public static final int XEL_SIZE = 15;
+    public static final int XEL_SIZE = 5;
     static final Paint[] PAINTS;
     static final Paint[] WHITES;
     static final int[] COLORS;
     static final int[] WHITE_RGB;
     static final long FRAME_INTERVAL = 1000L / 60;
-    static final long MAX_FRAME_INTERVAL = 100L;
+    static final long MAX_FRAME_INTERVAL = 300L;
     private static final double FACTOR = 0.9;
     private static final int ORANGE = Color.rgb(255, 200, 0);
     private static final int PINK = Color.rgb(255, 175, 175);

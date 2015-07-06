@@ -17,12 +17,12 @@ public class TextureRenderingThread extends RenderingThread {
 
     }
 
-    protected void draw(int[] totalEnergy) {
+    protected void draw() {
         final Canvas canvas = mSurface.lockCanvas(null);
         try {
 
             World.RGBDraw rgbDraw = new BitmapDraw(canvas, bitmap);
-            totalEnergy[0] = world.draw(true, rgbDraw);
+            world.draw(true, rgbDraw);
             rgbDraw.done();
         } finally {
             mSurface.unlockCanvasAndPost(canvas);

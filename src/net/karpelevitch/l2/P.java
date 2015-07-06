@@ -9,9 +9,9 @@ class P {
     public static final int[] dx = {0, 1, 1, 1, 0, -1, -1, -1, 0, 2, 2, 2, 0, -2, -2, -2};
     public static final int[] dy = {-1, -1, 0, 1, 1, 1, 0, -1, -2, -2, 0, 2, 2, 2, 0, -2};
     private static final int INC = 0;
-    private static final int DEC = 1;
+    private static final int DIE = 1;
     private static final int SHIFT = 2;
-    private static final int ADD = 3;
+    private static final int ADD_CMP = 3;
     private static final int COPY = 4;
     private static final int DELETE = 5;
     private static final int JUMP = 6;
@@ -58,6 +58,9 @@ class P {
             case INC:
                 mem[getIndex(nextByte())] += (cmdExtra - 8);
                 break;
+            case DIE:
+                die();
+                break;
             case SHIFT:
                 if (cmdExtra > 7) {
                     mem[getIndex(nextByte())] <<= (cmdExtra & 7);
@@ -65,13 +68,39 @@ class P {
                     mem[getIndex(nextByte())] >>>= cmdExtra;
                 }
                 break;
-            case ADD: {
+            case ADD_CMP: {
                 int offset1 = nextByte();
                 int offset2 = nextByte();
-                if (cmdExtra < 8) {
-                    mem[getIndex(offset1)] += mem[getIndex(offset2)];
-                } else {
-                    mem[getIndex(offset1)] -= mem[getIndex(offset2)];
+                int jump = nextByte() - 128;
+                boolean b = false;
+                switch (cmdExtra) {
+                    case 0:
+                        mem[getIndex(offset1)] += mem[getIndex(offset2)];
+                        break;
+                    case 1:
+                        mem[getIndex(offset1)] -= mem[getIndex(offset2)];
+                        break;
+                    case 2:
+                        b = mem[getIndex(offset1)] < mem[getIndex(offset2)];
+                        break;
+                    case 3:
+                        b = mem[getIndex(offset1)] > mem[getIndex(offset2)];
+                        break;
+                    case 4:
+                        b = mem[getIndex(offset1)] == mem[getIndex(offset2)];
+                        break;
+                    case 5:
+                        b = mem[getIndex(offset1)] != mem[getIndex(offset2)];
+                        break;
+                    case 6:
+                        b = 0 == (mem[getIndex(offset1)] & mem[getIndex(offset2)]);
+                        break;
+                    default:
+                        b = 0 != (mem[getIndex(offset1)] & mem[getIndex(offset2)]);
+                        break;
+                }
+                if (b) {
+                    ip = getIndex(jump);
                 }
                 break;
             }
@@ -105,7 +134,7 @@ class P {
 
             case READCOLOR: {
                 byte thatcolor = getColor(dx[cmdExtra], dy[cmdExtra]);
-                int jump = nextByte();
+                int jump = nextByte() - 128;
                 int nextByte = nextByte();
                 byte cmpcolor = (byte) (nextByte == 255 ? 255 : (nextByte % (world.getColorCount())));
                 if (cmpcolor == thatcolor) {
@@ -161,7 +190,7 @@ class P {
                     // check my energy
                     int curenergy = 4096 * energy / (MAX_ENERGY + 1);
                     int cmpenergy = cmdExtra * 256 + nextByte();
-                    int offset = nextByte();
+                    int offset = nextByte() - 128;
                     if (curenergy < cmpenergy) {
                         ip = getIndex(offset);
                     }
@@ -169,7 +198,7 @@ class P {
                     // read energy
                     int nb = nextByte();
                     int nb2 = nextByte();
-                    int offset = nextByte();
+                    int offset = nextByte() - 128;
                     boolean checkThis = (nb & 128) == 0;
                     int dir = nb & 15;
                     boolean rel = (nb & 64) == 0;
