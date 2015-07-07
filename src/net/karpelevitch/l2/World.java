@@ -464,6 +464,10 @@ public class World {
         return (byte) (cell.p == null ? 255 : cell.p.color);
     }
 
+    public int getHeight() {
+        return size_y;
+    }
+
     public interface RGBDraw {
 
         void drawMono(int i, int j, int b);

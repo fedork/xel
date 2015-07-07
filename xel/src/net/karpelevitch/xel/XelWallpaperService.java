@@ -73,6 +73,11 @@ public class XelWallpaperService extends WallpaperService {
         public void onTouchEvent(MotionEvent event) {
             super.onTouchEvent(event);
             int actionMasked = event.getActionMasked();
+            int actionIndex = event.getActionIndex();
+            float pressure = event.getPressure(actionIndex);
+            System.out.println("actionMasked = " + actionMasked);
+            System.out.println("actionIndex = " + actionIndex);
+            System.out.println("pressure = " + pressure);
             switch (actionMasked) {
 //                MotionEvent.ACTION_DOWN:
 //                    this.renderingThread.world.
