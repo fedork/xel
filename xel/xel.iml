@@ -3,7 +3,9 @@
   <component name="FacetManager">
     <facet type="android" name="Android">
       <configuration>
+        <option name="APK_PATH" value="/../out/production/xel/xel.apk" />
         <option name="UPDATE_PROPERTY_FILES" value="true" />
+        <includeAssetsFromLibraries>true</includeAssetsFromLibraries>
       </configuration>
     </facet>
   </component>

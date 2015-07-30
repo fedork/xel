@@ -1,41 +1,25 @@
 package net.karpelevitch.xel;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
-import android.util.AtomicFile;
 import android.util.Log;
 import net.karpelevitch.l2.World;
 
-import java.io.*;
-
 abstract class RenderingThread extends Thread {
-    private static final String FILE_NAME = "xel_state";
-    private static final long SAVE_INTERVAL = 120000L;
-    protected final int size_x;
-    protected final int size_y;
-    final World world;
+    protected final World world;
     private final Context ctx;
+    protected Bitmap bitmap = null;
+    protected int offsetX = 0;
+    protected int offsetY = 0;
+    protected float scale;
+    private float minScale = 3.0f;
     private volatile boolean mRunning = true;
 
-    public RenderingThread(final Context ctx, int size_x, int size_y) {
+    public RenderingThread(final Context ctx, World world, int width, int height) {
         this.ctx = ctx;
-        this.size_x = size_x;
-        this.size_y = size_y;
-        synchronized (World.class) {
-            DataInputStream in = null;
-            try {
-                Log.d("Xel", "attempting to restore from file");
-                in = new DataInputStream(new BufferedInputStream(new AtomicFile(ctx.getFileStreamPath(FILE_NAME)).openRead()));
-            } catch (FileNotFoundException e) {
-                e.printStackTrace();
-            }
-            world = new AndroidWorld(this.size_x, this.size_y, in) {
-                @Override
-                protected Context getCtx() {
-                    return ctx;
-                }
-            };
-        }
+        this.world = world;
+        scale = Math.max((float) width / world.size_x, (float) height / world.size_y);
     }
 
     @Override
@@ -51,32 +35,28 @@ abstract class RenderingThread extends Thread {
 //            diffuse();
 
         long nextSave = 0L;
+        Log.d("Xel", "RenderingThread.run()");
+
         while (mRunning && !Thread.interrupted()) {
-            long nextFrame = System.currentTimeMillis();
+            long nextFrame = System.currentTimeMillis() + MainActivity.FRAME_INTERVAL;
             long maxNextFrame = nextFrame + MainActivity.MAX_FRAME_INTERVAL;
-            draw();
+            synchronized (World.class) {
+                draw(world);
+            }
             if (System.currentTimeMillis() > nextSave) {
                 if (nextSave > 0) {
-                    saveState();
+//                    saveState();
                 }
-                nextSave = System.currentTimeMillis() + SAVE_INTERVAL;
+                nextSave = System.currentTimeMillis() + XelWorldService.SAVE_INTERVAL;
             }
             long sleepTime;
-            do {
-                maxage[0] = world.update();
-                nextFrame += MainActivity.FRAME_INTERVAL;
-                gen++;
-                frames++;
-            }
-            while (0 > (sleepTime = nextFrame - System.currentTimeMillis()) && System.currentTimeMillis() < maxNextFrame);
-            if (sleepTime > 0) {
+            sleepTime = Math.max(5L, nextFrame - System.currentTimeMillis());
                 try {
                     Thread.sleep(sleepTime);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                     break;
                 }
-            }
             long now;
             if ((now = System.currentTimeMillis()) - startTime > 10000) {
                 long totalMemory = Runtime.getRuntime().totalMemory();
@@ -90,51 +70,57 @@ abstract class RenderingThread extends Thread {
                 frames = 0;
             }
         }
-        saveState();
+//        XelWorldService.saveState(world, ctx);
     }
 
-    void saveState() {
-        AtomicFile file = new AtomicFile(ctx.getFileStreamPath(FILE_NAME));
-        FileOutputStream out = null;
-        try {
-            synchronized (World.class) {
-                Log.d("Xel", "attempting to save state");
-//            stream.reset();
-                long start = System.currentTimeMillis();
-                out = file.startWrite();
-                world.write(new DataOutputStream(new BufferedOutputStream(out)));
-                file.finishWrite(out);
-                Log.d("Xel", "wrote to file in " + (System.currentTimeMillis() - start) + "ms");
-            }
-/*
-            new Thread() {
-                @Override
-                public void run() {
-                    Log.d("Xel", "writing to file in another thread");
-                    long start = System.currentTimeMillis();
-                    try {
-                        stream.writeTo(ctx.openFileOutput(FILE_NAME, Context.MODE_PRIVATE));
-                        Log.d("Xel", "wrote to file in " + (System.currentTimeMillis() - start) + "ms");
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-
-                }
-            }.start();
-*/
-
-
-        } catch (IOException e) {
-            e.printStackTrace();
-            file.failWrite(out);
-        }
-    }
-
-    protected abstract void draw();
+    protected abstract void draw(World world);
 
     void stopRendering() {
         interrupt();
         mRunning = false;
+    }
+
+    public boolean scroll(float distanceX, float distanceY) {
+        int dx = (int) (distanceX / scale);
+        int dy = (int) (distanceY / scale);
+        if (dx != 0 || dy != 0) {
+            move(dx, dy);
+            return true;
+        }
+        return false;
+    }
+
+    void move(int dx, int dy) {
+        offsetX += dx;
+        while (offsetX < 0) offsetX += world.size_x;
+        offsetX %= world.size_x;
+
+        offsetY += dy;
+        while (offsetY < 0) offsetY += world.size_y;
+        offsetY %= world.size_y;
+    }
+
+    public boolean zoom(float scaleFactor, float focusX, float focusY) {
+        float newScale = Math.min(20.0f, Math.max(minScale, Math.round(10 * scale * scaleFactor) / 10.0f));
+        if (Math.abs(newScale - scale) > 0.05f) {
+            move((int) (focusX / scale - focusX / newScale), (int) (focusY / scale - focusY / newScale));
+            scale = newScale;
+            return true;
+        }
+        return false;
+    }
+
+    public Bitmap getBitmap(Canvas canvas) {
+        minScale = Math.max((float) canvas.getWidth() / world.size_x, (float) canvas.getHeight() / world.size_y);
+        if (scale < minScale) {
+            scale = minScale;
+        }
+        int w = Math.min((int) (canvas.getWidth() / scale), world.size_x);
+        int h = Math.min((int) (canvas.getHeight() / scale), world.size_y);
+        if (bitmap == null || bitmap.getWidth() != w || bitmap.getHeight() != h) {
+            bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        }
+        return bitmap;
     }
 
     private class CanvasDraw implements World.RGBDraw {

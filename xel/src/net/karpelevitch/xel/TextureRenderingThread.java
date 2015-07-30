@@ -7,25 +7,24 @@ import android.view.TextureView;
 import net.karpelevitch.l2.World;
 
 public class TextureRenderingThread extends RenderingThread {
-    protected final Bitmap bitmap;
-    private final TextureView mSurface;
 
-    public TextureRenderingThread(TextureView surface, Context ctx) {
-        super(ctx, surface.getWidth() / MainActivity.XEL_SIZE, surface.getHeight() / MainActivity.XEL_SIZE);
-        bitmap = Bitmap.createBitmap(this.size_x, this.size_y, Bitmap.Config.ARGB_8888);
+    protected final TextureView mSurface;
+
+    public TextureRenderingThread(TextureView surface, Context ctx, World world) {
+        super(ctx, world, surface.getWidth(), surface.getHeight());
         mSurface = surface;
-
     }
 
-    protected void draw() {
+    protected void draw(World world) {
         final Canvas canvas = mSurface.lockCanvas(null);
         try {
-
-            World.RGBDraw rgbDraw = new BitmapDraw(canvas, bitmap);
-            world.draw(true, rgbDraw);
+            Bitmap b = getBitmap(canvas);
+            World.RGBDraw rgbDraw = new BitmapDraw(canvas, b, scale);
+            world.draw(true, rgbDraw, b.getWidth(), b.getHeight(), offsetX, offsetY);
             rgbDraw.done();
         } finally {
             mSurface.unlockCanvasAndPost(canvas);
         }
     }
+
 }

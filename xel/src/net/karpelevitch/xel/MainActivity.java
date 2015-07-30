@@ -1,16 +1,24 @@
 package net.karpelevitch.xel;
 
 import android.app.Activity;
+import android.content.ComponentName;
+import android.content.Intent;
+import android.content.ServiceConnection;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.SurfaceTexture;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.util.Log;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
 import android.view.TextureView;
+import net.karpelevitch.l2.World;
 
 import static java.lang.Math.max;
 
-public class MainActivity extends Activity implements TextureView.SurfaceTextureListener {
+public class MainActivity extends Activity implements TextureView.SurfaceTextureListener, ServiceConnection {
     public static final int XEL_SIZE = 5;
     static final Paint[] PAINTS;
     static final Paint[] WHITES;
@@ -46,6 +54,9 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
 
     private RenderingThread mThread;
     private TextureView textureView;
+    private XelWorldService xelService;
+    private GestureDetector gestureDetector;
+    private ScaleGestureDetector scaleGestureDetector;
 
     private static Paint newPaint(int color) {
         Paint paint = new Paint();
@@ -78,14 +89,16 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
     protected void onPause() {
         Log.d("Xel", "onPause!");
         if (mThread != null) mThread.stopRendering();
+        unbindService(this);
         super.onPause();
     }
 
 
     @Override
     public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-        mThread = new TextureRenderingThread(textureView, this);
-        mThread.start();
+        Log.d("Xel", "width = " + width + " height = " + height);
+
+        boolean bound = bindService(new Intent(this, XelWorldService.class), this, BIND_AUTO_CREATE);
     }
 
     @Override
@@ -96,6 +109,7 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
     @Override
     public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
         if (mThread != null) mThread.stopRendering();
+//        unbindService(this);
         return true;
     }
 
@@ -104,4 +118,48 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         // Ignored
     }
 
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        return scaleGestureDetector != null && scaleGestureDetector.onTouchEvent(event) | gestureDetector != null && gestureDetector.onTouchEvent(event);
+    }
+
+    @Override
+    public void onServiceConnected(ComponentName name, IBinder service) {
+        Log.d("Xel", "on service connected name = " + name + " \tservice = " + service);
+        xelService = ((XelWorldService.LocalBinder) service).getService();
+        World world;
+        do {
+            synchronized (xelService) {
+                world = xelService.getWorld();
+                if (world != null) break;
+                try {
+                    xelService.wait(5);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        } while (true);
+        mThread = new TextureRenderingThread(textureView, this, world);
+        mThread.start();
+        GestureDetector.SimpleOnGestureListener gestureListener = new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public boolean onScroll(MotionEvent e1, MotionEvent e2, float distanceX, float distanceY) {
+                return mThread.scroll(distanceX, distanceY);
+            }
+        };
+        gestureDetector = new GestureDetector(this, gestureListener);
+        scaleGestureDetector = new ScaleGestureDetector(this, new ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            @Override
+            public boolean onScale(ScaleGestureDetector detector) {
+                return mThread.zoom(detector.getScaleFactor(), detector.getFocusX(), detector.getFocusY());
+            }
+        });
+    }
+
+    @Override
+    public void onServiceDisconnected(ComponentName name) {
+        Log.d("Xel", "name = " + name);
+        xelService = null;
+        // maybe stop rendering
+    }
 }

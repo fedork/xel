@@ -20,7 +20,7 @@ public class World {
     static final int MAX_MEM = 3000;
     static final Random RANDOM = new Random(System.currentTimeMillis());
     private static final int MUTATION_RATE = 100;
-    private static final int VERSION = 2;
+    private static final int VERSION = 3;
     public final LinkedList<P> list = new LinkedList<>();
     final long MAX_P = Runtime.getRuntime().maxMemory() / MAX_MEM / 3;
     private final int ENERGY_PLUS = 3000;
@@ -29,8 +29,8 @@ public class World {
     private final LinkedList<ESource> sources = new LinkedList<>();
     private final EnergyField ef;
     public int maxgen;
-    private int size_x;
-    private int size_y;
+    public int size_x;
+    public int size_y;
     private int colorCount;
     private byte[] scratchpad = new byte[MAX_MEM * 100];
 
@@ -50,14 +50,13 @@ public class World {
             try {
                 read(in);
                 in.close();
-            } catch (IOException e) {
-                System.err.println("Failed to restore from file - starting from scratch");
+            } catch (Exception e) {
+                System.out.println("Failed to restore from file - starting from scratch");
                 e.printStackTrace();
                 randomize();
             }
         }
 
-        System.out.println("MAX_P = " + MAX_P);
     }
 
     public void read(DataInputStream in) throws IOException {
@@ -66,7 +65,6 @@ public class World {
             int tag = in.readInt();
             int sourceCount;
             int version = in.readInt();
-            System.out.println("version = " + version);
             if (version >= 2) {
 //                size_x = in.readInt();
                 in.readInt();
@@ -76,12 +74,15 @@ public class World {
                 in.readInt();
             }
             sourceCount = in.readInt();
-            System.out.println("sourceCount = " + sourceCount);
 
             for (int i = 0; i < sourceCount; i++) {
                 int coord = in.readInt();
                 int dir = in.readInt();
-                sources.add(new ESource(coord, dir));
+                int speed = 25;
+                if (version >= 3) {
+                    speed = in.readInt();
+                }
+                sources.add(new ESource(coord, dir, speed));
             }
             int scratchpadSize = in.readInt();
             in.readFully(scratchpad, 0, min(scratchpadSize, scratchpad.length));
@@ -89,14 +90,11 @@ public class World {
                 in.skipBytes(scratchpadSize - scratchpad.length);
             }
             int mapsize = in.readInt();
-            System.out.println("mapsize = " + mapsize);
-            System.out.println("map.length = " + map.length);
             byte[] devnull = new byte[256];
             for (int i = 0; i < mapsize; i++) {
                 in.readFully(i < map.length ? map[i].info : devnull);
             }
             int pCount = in.readInt();
-            System.out.println("pCount = " + pCount);
             for (int i = 0; i < pCount; i++) {
                 int coords = in.readInt();
                 int memSize = in.readInt();
@@ -128,6 +126,7 @@ public class World {
             for (ESource source : sources) {
                 out.writeInt(source.coord);
                 out.writeInt(source.dir);
+                out.writeInt(source.speed);
             }
             out.writeInt(scratchpad.length);
             out.write(scratchpad);
@@ -151,6 +150,7 @@ public class World {
     }
 
     public void randomize() {
+        sources.clear();
         int sourceCount = 2;
         for (int i = 0; i < sourceCount; i++) {
             addRandomSource();
@@ -167,7 +167,7 @@ public class World {
     }
 
     private boolean addSource(int coord) {
-        return sources.add(new ESource(coord, getRandomDirection()));
+        return sources.add(new ESource(coord, getRandomDirection(), 2 + RANDOM.nextInt(20)));
     }
 
     protected EnergyField createEnergyField(final int size_x, final int size_y) {
@@ -338,7 +338,7 @@ public class World {
             sources.remove(RANDOM.nextInt(sources.size()));
         }
         for (ESource source : sources) {
-            if (RANDOM.nextInt(50) == 3) {
+            if (RANDOM.nextInt(source.speed) == 0) {
                 if (RANDOM.nextInt(100) == 5) {
                     source.dir = getRandomDirection();
                 }
@@ -485,10 +485,12 @@ public class World {
     private class ESource {
         private int coord;
         private int dir;
+        private int speed;
 
-        public ESource(int coord, int dir) {
+        public ESource(int coord, int dir, int speed) {
             this.coord = coord;
             this.dir = dir;
+            this.speed = speed;
         }
     }
 }
