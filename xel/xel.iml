@@ -4,6 +4,11 @@
     <facet type="android" name="Android">
       <configuration>
         <option name="APK_PATH" value="/../out/production/xel/xel.apk" />
+        <option name="RUN_PROGUARD" value="true" />
+        <proGuardCfgFiles>
+          <file>file://%MODULE_SDK_HOME%/tools/proguard/proguard-android.txt</file>
+          <file>file://$MODULE_DIR$/proguard-project.txt</file>
+        </proGuardCfgFiles>
         <option name="UPDATE_PROPERTY_FILES" value="true" />
         <includeAssetsFromLibraries>true</includeAssetsFromLibraries>
       </configuration>
@@ -18,5 +23,7 @@
     <orderEntry type="jdk" jdkName="Android 5.1.1 Google APIs" jdkType="Android SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="l2" />
+    <orderEntry type="library" name="renderscript-v8" level="project" />
+    <orderEntry type="library" name="android-support-v4" level="application" />
   </component>
 </module>

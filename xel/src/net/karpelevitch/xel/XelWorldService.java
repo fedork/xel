@@ -5,7 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.IBinder;
-import android.util.AtomicFile;
+import android.support.v4.util.AtomicFile;
 import android.util.Log;
 import net.karpelevitch.l2.World;
 
@@ -118,14 +118,14 @@ public class XelWorldService extends Service {
                             }
                         };
                     }
-                    long saveTime = System.currentTimeMillis() + 120000L;
+                    long saveTime = System.currentTimeMillis() + SAVE_INTERVAL;
                     long printTime = 0;
                     while (running && !interrupted()) {
                         synchronized (World.class) {
                             world.update();
                             if (System.currentTimeMillis() >= saveTime) {
                                 saveState(world, XelWorldService.this);
-                                saveTime = System.currentTimeMillis() + 120000L;
+                                saveTime = System.currentTimeMillis() + SAVE_INTERVAL;
                             }
 //                            World.class.notifyAll();
 //                            World.class.wait(5L);

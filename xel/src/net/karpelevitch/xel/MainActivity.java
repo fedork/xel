@@ -120,7 +120,7 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
-        return scaleGestureDetector != null && scaleGestureDetector.onTouchEvent(event) | gestureDetector != null && gestureDetector.onTouchEvent(event);
+        return scaleGestureDetector != null && scaleGestureDetector.onTouchEvent(event) | (gestureDetector != null && gestureDetector.onTouchEvent(event));
     }
 
     @Override

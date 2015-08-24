@@ -112,7 +112,7 @@ public class XelWallpaperService extends WallpaperService {
 
         @Override
         public void onTouchEvent(MotionEvent event) {
-            boolean result = scaleGestureDetector != null && scaleGestureDetector.onTouchEvent(event) | gestureDetector != null && gestureDetector.onTouchEvent(event);
+            boolean result = scaleGestureDetector != null && scaleGestureDetector.onTouchEvent(event) | (gestureDetector != null && gestureDetector.onTouchEvent(event));
 //            System.out.println("result = " + result);
         }
 

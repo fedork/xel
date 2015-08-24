@@ -36,7 +36,7 @@ class BitmapDraw implements World.RGBDraw {
 
         Matrix matrix = new Matrix();
         matrix.setScale(scale, scale);
-        canvas.drawColor(Color.DKGRAY);
+        canvas.drawColor(Color.BLACK);
         this.canvas.drawBitmap(bitmap, matrix, null);
     }
 }

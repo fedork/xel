@@ -37,38 +37,21 @@ abstract class RenderingThread extends Thread {
         long nextSave = 0L;
         Log.d("Xel", "RenderingThread.run()");
 
-        while (mRunning && !Thread.interrupted()) {
-            long nextFrame = System.currentTimeMillis() + MainActivity.FRAME_INTERVAL;
-            long maxNextFrame = nextFrame + MainActivity.MAX_FRAME_INTERVAL;
-            synchronized (World.class) {
-                draw(world);
-            }
-            if (System.currentTimeMillis() > nextSave) {
-                if (nextSave > 0) {
-//                    saveState();
+        try {
+            while (mRunning && !Thread.interrupted()) {
+                long nextFrame = System.currentTimeMillis() + MainActivity.FRAME_INTERVAL;
+                long maxNextFrame = nextFrame + MainActivity.MAX_FRAME_INTERVAL;
+                synchronized (World.class) {
+                    if (mRunning && !Thread.interrupted()) {
+                        draw(world);
+                    }
                 }
-                nextSave = System.currentTimeMillis() + XelWorldService.SAVE_INTERVAL;
+                long sleepTime;
+                sleepTime = Math.max(5L, nextFrame - System.currentTimeMillis());
+                Thread.sleep(sleepTime);
             }
-            long sleepTime;
-            sleepTime = Math.max(5L, nextFrame - System.currentTimeMillis());
-                try {
-                    Thread.sleep(sleepTime);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                    break;
-                }
-            long now;
-            if ((now = System.currentTimeMillis()) - startTime > 10000) {
-                long totalMemory = Runtime.getRuntime().totalMemory();
-                long maxMemory = Runtime.getRuntime().maxMemory();
-                long freeMem = Runtime.getRuntime().freeMemory();
-                double freePercent = 100.0 * freeMem / totalMemory;
-//                    Runtime.getRuntime().gc();
-                Log.d("Xel", String.format("%d \t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%f\n", gen, frames * 1000 / (now - startTime), world.list.size(), maxage[0], world.maxgen, freeMem, totalMemory, maxMemory, freePercent));
-                startTime = System.currentTimeMillis();
-//                    startTime = now;
-                frames = 0;
-            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
 //        XelWorldService.saveState(world, ctx);
     }
@@ -76,8 +59,13 @@ abstract class RenderingThread extends Thread {
     protected abstract void draw(World world);
 
     void stopRendering() {
-        interrupt();
         mRunning = false;
+        interrupt();
+        try {
+            join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     public boolean scroll(float distanceX, float distanceY) {

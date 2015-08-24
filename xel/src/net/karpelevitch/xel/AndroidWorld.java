@@ -1,7 +1,7 @@
 package net.karpelevitch.xel;
 
 import android.content.Context;
-import android.renderscript.*;
+import android.support.v8.renderscript.*;
 import net.karpelevitch.l2.EnergyField;
 import net.karpelevitch.l2.World;
 
@@ -17,6 +17,7 @@ abstract class AndroidWorld extends World {
     public AndroidWorld(int size_x, int size_y, DataInputStream in) {
         super(size_x, size_y, MainActivity.PAINTS.length, in);
     }
+
 
     @Override
     protected EnergyField createEnergyField(final int size_x, final int size_y) {
