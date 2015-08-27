@@ -3,10 +3,7 @@ package net.karpelevitch.xel;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.Random;
+import java.util.*;
 
 import static java.lang.Math.max;
 import static java.lang.Math.min;
@@ -16,17 +13,17 @@ import static net.karpelevitch.xel.EnergyField.MAX_ENERGY;
 
 public class World {
     public static final int DIFFUSE_FACTOR = 3;
-    public static final int SOURCE_EXPECTANCY_BASE = 2500;
-    static final int MAX_MEM = 3000;
+    public static final int SOURCE_EXPECTANCY_BASE = 1000;
+    static final int MAX_MEM = 500;
     static final Random RANDOM = new Random(System.currentTimeMillis());
     private static final int MUTATION_RATE = 100;
     private static final int VERSION = 3;
     public final LinkedList<P> list = new LinkedList<>();
-    final long MAX_P = Runtime.getRuntime().maxMemory() / MAX_MEM / 3;
+    final long maxP = Runtime.getRuntime().maxMemory() / MAX_MEM / 3;
     private final int ENERGY_PLUS = 3000;
     private final Cell[] map;
-    private final LinkedList<P> tmplist = new LinkedList<>();
-    private final LinkedList<ESource> sources = new LinkedList<>();
+    private final ArrayList<P> tmplist = new ArrayList<>();
+    private final ArrayList<ESource> sources = new ArrayList<>();
     private final EnergyField ef;
     public int maxgen;
     public int size_x;
@@ -111,7 +108,7 @@ public class World {
                     map[p.coords].p = p;
                 }
             }
-            ef.read(in);
+            ef.read(in, version);
         }
     }
 
@@ -157,7 +154,7 @@ public class World {
         }
         RANDOM.nextBytes(scratchpad);
 
-        createRandom(MAX_P / 5);
+        createRandom(maxP / 5);
 
         randomizeEnergy();
     }
@@ -196,14 +193,8 @@ public class World {
             }
 
             @Override
-            public void read(DataInputStream in) throws IOException {
-                int size = in.readInt();
-                for (int i = 0; i < size; i++) {
-                    int e = in.readInt();
-                    if (i < energy.length) {
-                        energy[i] = e;
-                    }
-                }
+            public void read(DataInputStream in, int version) throws IOException {
+                throw new UnsupportedOperationException("not implemented");
             }
 
             @Override
@@ -332,7 +323,7 @@ public class World {
 
     private void fountain() {
 //            maxenergy = 0;
-        if (sources.size() < 8 && RANDOM.nextInt(sources.size() * 10 + SOURCE_EXPECTANCY_BASE) == 3) {
+        if (sources.size() < 2 || (sources.size() < 8 && RANDOM.nextInt(sources.size() * 500 + SOURCE_EXPECTANCY_BASE) == 3)) {
             addRandomSource();
         } else if (sources.size() > 2 && RANDOM.nextInt((10 - sources.size()) * 10 + SOURCE_EXPECTANCY_BASE) == 3) {
             sources.remove(RANDOM.nextInt(sources.size()));
@@ -380,14 +371,14 @@ public class World {
     }
 
     private void createOrAppend(int coords, byte[] mem, int memlength, int ip, byte color, int e, int generation, boolean okToAppend) {
-//        if (Runtime.getRuntime().freeMemory() < 10 * MAX_MEM || list.size() > MAX_P) return;
+//        if (Runtime.getRuntime().freeMemory() < 10 * MAX_MEM || list.size() > maxP) return;
         Cell cell = map[coords];
         if (cell.p == null) {
-            if (list.size() + tmplist.size() > MAX_P) return;
+            if (list.size() + tmplist.size() > maxP) return;
             cell.p = new P(this, coords, copyOf(mem, memlength), memlength, ip, color, e / 5, generation);
             tmplist.add(cell.p);
         } else if (okToAppend) {
-            int length = min(memlength, MAX_MEM - cell.p.memlength);
+            int length = max(0, min(memlength, MAX_MEM - cell.p.memlength));
             if (cell.p.memlength + length > cell.p.mem.length) {
                 byte[] newmem = new byte[cell.p.memlength + length];
                 arraycopy(cell.p.mem, 0, newmem, 0, cell.p.memlength);

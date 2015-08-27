@@ -13,18 +13,17 @@ repositories {
 }
 
 android {
-    compileSdkVersion 22
-    buildToolsVersion '22.0.1'
+    compileSdkVersion 23
+    buildToolsVersion '23.0.0'
 
     defaultConfig {
         applicationId "net.karpelevitch.xel"
-        minSdkVersion 17
-        targetSdkVersion 22
-        versionCode 4
-        versionName "1.3"
-        renderscriptTargetApi 19
+        minSdkVersion 14
+        targetSdkVersion 23
+        versionCode 7
+        versionName "1.6"
         renderscriptSupportModeEnabled true
-
+        renderscriptTargetApi 19
     }
     buildTypes {
         release {
@@ -36,10 +35,8 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_7
         targetCompatibility JavaVersion.VERSION_1_7
     }
-    dexOptions {
-        incremental true
-    }
 }
 
 dependencies {
+//    compile 'com.android.support:support-v4:23.0.0'
 }

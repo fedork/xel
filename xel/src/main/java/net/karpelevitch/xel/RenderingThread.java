@@ -23,17 +23,6 @@ abstract class RenderingThread extends Thread {
 
     @Override
     public void run() {
-
-//            Paint paint = new Paint();
-//            paint.setColor(0xff00ff00);
-        long startTime = System.currentTimeMillis();
-        int gen = 0;
-        int frames = 0;
-        int[] maxage = new int[1];
-
-//            diffuse();
-
-        long nextSave = 0L;
         Log.d("Xel", "RenderingThread.run()");
 
         try {
@@ -52,7 +41,6 @@ abstract class RenderingThread extends Thread {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-//        XelWorldService.saveState(world, ctx);
     }
 
     protected abstract void draw(World world);
@@ -105,33 +93,10 @@ abstract class RenderingThread extends Thread {
         int w = Math.min((int) (canvas.getWidth() / scale), world.size_x);
         int h = Math.min((int) (canvas.getHeight() / scale), world.size_y);
         if (bitmap == null || bitmap.getWidth() != w || bitmap.getHeight() != h) {
+            Log.d("Xel", "Creating new bitmap:" + w + ", " +h);
             bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         }
         return bitmap;
-    }
-
-    private class CanvasDraw implements World.RGBDraw {
-        private final int pixels;
-        private Canvas canvas;
-
-        private CanvasDraw(Canvas canvas) {
-            this.canvas = canvas;
-            pixels = MainActivity.XEL_SIZE;
-        }
-
-        @Override
-        public void drawMono(int i, int j, int b) {
-            canvas.drawRect(i * pixels, j * pixels, (i + 1) * pixels/* - 1*/, (j + 1) * pixels /*- 1*/, MainActivity.WHITES[b]);
-        }
-
-        @Override
-        public void drawColor(int i, int j, int color) {
-            canvas.drawRect(i * pixels, j * pixels, (i + 1) * pixels/* - 1*/, (j + 1) * pixels /*- 1*/, MainActivity.PAINTS[color]);
-        }
-
-        @Override
-        public void done() {
-        }
     }
 
 }

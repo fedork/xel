@@ -44,12 +44,16 @@ public class XelWallpaperService extends WallpaperService {
             if (width > 0 && height > 0) {
                 mThread = new RenderingThread(XelWallpaperService.this, world, width, height) {
 
+                    private final BitmapDraw rgbDraw = new BitmapDraw();
+
                     @Override
                     protected void draw(World world) {
                         final Canvas canvas = surfaceHolder.lockCanvas(null);
                         try {
                             Bitmap b = getBitmap(canvas);
-                            World.RGBDraw rgbDraw = new BitmapDraw(canvas, b, scale);
+                            rgbDraw.setCanvas(canvas);
+                            rgbDraw.setBitmap(b);
+                            rgbDraw.setScale(scale);
                             world.draw(true, rgbDraw, b.getWidth(), b.getHeight(), offsetX, offsetY);
                             rgbDraw.done();
                         } finally {
@@ -96,10 +100,24 @@ public class XelWallpaperService extends WallpaperService {
                     bindService(new Intent(XelWallpaperService.this, XelWorldService.class), this, BIND_AUTO_CREATE);
                 }
             } else {
-                if (mThread != null) mThread.stopRendering();
-                unbindService(this);
+                del();
             }
         }
+
+        private void del() {
+            if (mThread != null) mThread.stopRendering();
+            mThread = null;
+            gestureDetector = null;
+            scaleGestureDetector = null;
+            try {
+                unbindService(this);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            xelService = null;
+        }
+
+
 
         @Override
         public void onSurfaceChanged(SurfaceHolder holder, int format, int width, int height) {
@@ -126,7 +144,7 @@ public class XelWallpaperService extends WallpaperService {
                     world = xelService.getWorld();
                     if (world != null) break;
                     try {
-                        xelService.wait(5);
+                        xelService.wait(1000L);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -151,9 +169,8 @@ public class XelWallpaperService extends WallpaperService {
 
         @Override
         public void onServiceDisconnected(ComponentName name) {
-            Log.d("Xel", "name = " + name);
-            xelService = null;
-            // maybe stop rendering
+            Log.d("Xel", "wallpaper.onServiceDisconnected name = " + name);
+            del();
         }
     }
 }

@@ -1,7 +1,7 @@
 package net.karpelevitch.xel;
 
 import android.content.Context;
-import android.renderscript.*;
+import android.support.v8.renderscript.*;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -35,7 +35,8 @@ abstract class AndroidWorld extends World {
         };
         coefficients[4] = c22;
         script.setCoefficients(coefficients);
-        Type xy = Type.createXY(rs, f32, size_x + 2, size_y + 2);
+        Type xy = new Type.Builder(rs, f32).setX(size_x + 2).setY(size_y + 2).create();
+//        Type xy = Type.createXY(rs, f32, size_x + 2, size_y + 2);
         final Allocation ain = Allocation.createTyped(rs, xy);
         final Allocation aout = Allocation.createTyped(rs, xy);
         return new EnergyField() {
@@ -66,7 +67,7 @@ abstract class AndroidWorld extends World {
             }
 
             @Override
-            public void read(DataInputStream in) throws IOException {
+            public void read(DataInputStream in, int version) throws IOException {
                 int size = in.readInt();
                 for (int i = 0; i < size; i++) {
                     float e = in.readFloat();

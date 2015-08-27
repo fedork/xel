@@ -80,22 +80,38 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         setContentView(R.layout.main);
         textureView = (TextureView) findViewById(R.id.textureView);
         textureView.setSurfaceTextureListener(this);
+    }
 
-
+    @Override
+    protected void onResume() {
+        super.onResume();
+        boolean bound = bindService(new Intent(this, XelWorldService.class), this, BIND_AUTO_CREATE);
     }
 
     @Override
     protected void onPause() {
         Log.d("Xel", "onPause!");
-        if (mThread != null) mThread.stopRendering();
-        unbindService(this);
+        del();
         super.onPause();
+    }
+
+    private void del() {
+        if (mThread != null) mThread.stopRendering();
+        mThread = null;
+        gestureDetector = null;
+        scaleGestureDetector = null;
+        try {
+            unbindService(this);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        xelService = null;
     }
 
 
     @Override
     public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-        Log.d("Xel", "width = " + width + " height = " + height);
+        Log.d("Xel", "onSurfaceTextureAvailable width = " + width + " height = " + height);
 
         boolean bound = bindService(new Intent(this, XelWorldService.class), this, BIND_AUTO_CREATE);
     }
@@ -107,7 +123,7 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
 
     @Override
     public boolean onSurfaceTextureDestroyed(SurfaceTexture surface) {
-        if (mThread != null) mThread.stopRendering();
+        del();
 //        unbindService(this);
         return true;
     }
@@ -157,8 +173,8 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
 
     @Override
     public void onServiceDisconnected(ComponentName name) {
-        Log.d("Xel", "name = " + name);
-        xelService = null;
+        Log.d("Xel", "onServiceDisconnected name = " + name);
+        del();
         // maybe stop rendering
     }
 }
