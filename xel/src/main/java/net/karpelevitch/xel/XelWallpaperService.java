@@ -49,15 +49,17 @@ public class XelWallpaperService extends WallpaperService {
                     @Override
                     protected void draw(World world) {
                         final Canvas canvas = surfaceHolder.lockCanvas(null);
-                        try {
-                            Bitmap b = getBitmap(canvas);
-                            rgbDraw.setCanvas(canvas);
-                            rgbDraw.setBitmap(b);
-                            rgbDraw.setScale(scale);
-                            world.draw(true, rgbDraw, b.getWidth(), b.getHeight(), offsetX, offsetY);
-                            rgbDraw.done();
-                        } finally {
-                            surfaceHolder.unlockCanvasAndPost(canvas);
+                        if (canvas != null) {
+                            try {
+                                Bitmap b = getBitmap(canvas);
+                                rgbDraw.setCanvas(canvas);
+                                rgbDraw.setBitmap(b);
+                                rgbDraw.setScale(scale);
+                                world.draw(true, rgbDraw, b.getWidth(), b.getHeight(), offsetX, offsetY);
+                                rgbDraw.done();
+                            } finally {
+                                surfaceHolder.unlockCanvasAndPost(canvas);
+                            }
                         }
                     }
                 };
@@ -116,7 +118,6 @@ public class XelWallpaperService extends WallpaperService {
             }
             xelService = null;
         }
-
 
 
         @Override

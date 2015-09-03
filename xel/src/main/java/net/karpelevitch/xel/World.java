@@ -13,11 +13,12 @@ import static net.karpelevitch.xel.EnergyField.MAX_ENERGY;
 
 public class World {
     public static final int DIFFUSE_FACTOR = 3;
-    public static final int SOURCE_EXPECTANCY_BASE = 1000;
-    static final int MAX_MEM = 500;
+    public static final int SOURCE_EXPECTANCY_BASE = 2000;
+    static final int MAX_MEM = 100;
     static final Random RANDOM = new Random(System.currentTimeMillis());
     private static final int MUTATION_RATE = 100;
     private static final int VERSION = 3;
+    public static final int SOURCE_EXP_GRAVITY = 500;
     public final LinkedList<P> list = new LinkedList<>();
     final long maxP = Runtime.getRuntime().maxMemory() / MAX_MEM / 3;
     private final int ENERGY_PLUS = 3000;
@@ -323,9 +324,9 @@ public class World {
 
     private void fountain() {
 //            maxenergy = 0;
-        if (sources.size() < 2 || (sources.size() < 8 && RANDOM.nextInt(sources.size() * 500 + SOURCE_EXPECTANCY_BASE) == 3)) {
+        if (sources.size() < 2 || (sources.size() < 8 && RANDOM.nextInt(sources.size() * SOURCE_EXP_GRAVITY + SOURCE_EXPECTANCY_BASE) == 3)) {
             addRandomSource();
-        } else if (sources.size() > 2 && RANDOM.nextInt((10 - sources.size()) * 10 + SOURCE_EXPECTANCY_BASE) == 3) {
+        } else if (sources.size() > 2 && RANDOM.nextInt((10 - sources.size()) * SOURCE_EXP_GRAVITY + SOURCE_EXPECTANCY_BASE) == 3) {
             sources.remove(RANDOM.nextInt(sources.size()));
         }
         for (ESource source : sources) {

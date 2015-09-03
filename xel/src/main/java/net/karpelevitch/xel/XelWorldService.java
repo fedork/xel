@@ -23,7 +23,7 @@ public class XelWorldService extends Service {
     private volatile boolean running = false;
 
     public static void saveState(World world, Context ctx) {
-        if (android.os.Build.VERSION.SDK_INT>=17) {
+        if (android.os.Build.VERSION.SDK_INT >= 17) {
             saveStateAtomic(world, ctx);
         } else {
             saveStateSimple(world, ctx);
@@ -124,7 +124,7 @@ public class XelWorldService extends Service {
                         DataInputStream in = null;
                         try {
                             FileInputStream file;
-                            if (android.os.Build.VERSION.SDK_INT>=17) {
+                            if (android.os.Build.VERSION.SDK_INT >= 17) {
                                 file = new AtomicFile(getFileStreamPath(XelWorldService.FILE_NAME)).openRead();
                             } else {
                                 file = new FileInputStream(getFileStreamPath(XelWorldService.FILE_NAME));
@@ -136,8 +136,8 @@ public class XelWorldService extends Service {
 
                         ActivityManager activityManager = (ActivityManager) getApplicationContext().getSystemService(ACTIVITY_SERVICE);
                         int memoryClass = activityManager.getMemoryClass();
-                        Log.d("Xel", "memory class: "+ memoryClass);
-                        int defaultSize = memoryClass<=48?200:300;
+                        Log.d("Xel", "memory class: " + memoryClass);
+                        int defaultSize = memoryClass <= 48 ? 300 : 300;
                         world = null;
                         Runtime.getRuntime().gc();
                         synchronized (XelWorldService.this) {
@@ -171,7 +171,9 @@ public class XelWorldService extends Service {
                 } catch (Exception e) {
                     e.printStackTrace();
                 } finally {
-                    saveState(world, XelWorldService.this);
+                    if (world != null) {
+                        saveState(world, XelWorldService.this);
+                    }
                     running = false;
                     thread = null;
                     world = null;

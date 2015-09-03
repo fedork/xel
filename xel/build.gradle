@@ -20,14 +20,14 @@ android {
         applicationId "net.karpelevitch.xel"
         minSdkVersion 14
         targetSdkVersion 23
-        versionCode 7
-        versionName "1.6"
+        versionCode 8
+        versionName "1.7"
         renderscriptSupportModeEnabled true
         renderscriptTargetApi 19
     }
     buildTypes {
         release {
-            minifyEnabled false
+            minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
@@ -38,5 +38,5 @@ android {
 }
 
 dependencies {
-//    compile 'com.android.support:support-v4:23.0.0'
+    //    compile 'com.android.support:support-v4:23.0.0'
 }
