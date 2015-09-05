@@ -20,8 +20,8 @@ android {
         applicationId "net.karpelevitch.xel"
         minSdkVersion 14
         targetSdkVersion 23
-        versionCode 8
-        versionName "1.7"
+        versionCode 9
+        versionName "1.8"
         renderscriptSupportModeEnabled true
         renderscriptTargetApi 19
     }

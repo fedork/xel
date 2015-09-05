@@ -9,7 +9,7 @@
     </uses-feature>
 
     <application
-        android:icon="@drawable/xel_icon3"
+        android:icon="@mipmap/icon"
         android:label="@string/app_name"
         android:allowBackup="true"
         >
