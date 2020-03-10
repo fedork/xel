@@ -2,8 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/Xel.iml" filepath="$PROJECT_DIR$/Xel.iml" />
-      <module fileurl="file://$PROJECT_DIR$/xel/xel.iml" filepath="$PROJECT_DIR$/xel/xel.iml" />
+      <module fileurl="file://$PROJECT_DIR$/StudioProjects-xel.iml" filepath="$PROJECT_DIR$/StudioProjects-xel.iml" group="xel" />
+      <module fileurl="file://$PROJECT_DIR$/xel/xel-xel.iml" filepath="$PROJECT_DIR$/xel/xel-xel.iml" group="xel/xel" />
     </modules>
   </component>
 </project>

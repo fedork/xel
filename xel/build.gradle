@@ -1,25 +1,29 @@
 buildscript {
     repositories {
         jcenter()
+        google()
+        mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:1.1.1'
+        classpath 'com.android.tools.build:gradle:3.6.1'
     }
 }
 apply plugin: 'com.android.application'
 
 repositories {
+    google()
+
     jcenter()
 }
 
 android {
-    compileSdkVersion 23
-    buildToolsVersion '23.0.0'
+    compileSdkVersion 29
+    buildToolsVersion '29.0.3'
 
     defaultConfig {
         applicationId "net.karpelevitch.xel"
-        minSdkVersion 14
-        targetSdkVersion 23
+        minSdkVersion 24
+        targetSdkVersion 29
         versionCode 9
         versionName "1.8"
         renderscriptSupportModeEnabled true
@@ -32,8 +36,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_7
-        targetCompatibility JavaVersion.VERSION_1_7
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 }
 
