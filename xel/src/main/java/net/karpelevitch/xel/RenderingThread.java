@@ -12,7 +12,7 @@ abstract class RenderingThread extends Thread {
     protected int offsetX = 0;
     protected int offsetY = 0;
     protected float scale;
-    private float minScale = 3.0f;
+    private float minScale = 1.0f;
     private volatile boolean mRunning = true;
 
     public RenderingThread(final Context ctx, World world, int width, int height) {

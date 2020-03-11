@@ -19,13 +19,16 @@ repositories {
 android {
     compileSdkVersion 29
     buildToolsVersion '29.0.3'
+    viewBinding {
+        enabled = true
+    }
 
     defaultConfig {
         applicationId "net.karpelevitch.xel"
         minSdkVersion 24
         targetSdkVersion 29
-        versionCode 9
-        versionName "1.8"
+        versionCode 11
+        versionName "1.10"
         renderscriptSupportModeEnabled true
         renderscriptTargetApi 19
     }

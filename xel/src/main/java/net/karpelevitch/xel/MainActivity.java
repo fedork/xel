@@ -15,6 +15,8 @@ import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.TextureView;
 
+import net.karpelevitch.xel.databinding.MainBinding;
+
 import static java.lang.Math.max;
 
 public class MainActivity extends Activity implements TextureView.SurfaceTextureListener, ServiceConnection {
@@ -52,7 +54,7 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
     }
 
     private RenderingThread mThread;
-    private TextureView textureView;
+    private MainBinding binding;
     private XelWorldService xelService;
     private GestureDetector gestureDetector;
     private ScaleGestureDetector scaleGestureDetector;
@@ -77,9 +79,9 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.main);
-        textureView = (TextureView) findViewById(R.id.textureView);
-        textureView.setSurfaceTextureListener(this);
+        binding = MainBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
+        binding.textureView.setSurfaceTextureListener(this);
     }
 
     @Override
@@ -154,7 +156,7 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
                 }
             }
         } while (true);
-        mThread = new TextureRenderingThread(textureView, this, world);
+        mThread = new TextureRenderingThread(binding.textureView, this, world);
         mThread.start();
         GestureDetector.SimpleOnGestureListener gestureListener = new GestureDetector.SimpleOnGestureListener() {
             @Override

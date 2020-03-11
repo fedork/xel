@@ -4,10 +4,12 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
+import android.graphics.Paint;
 
 
 class BitmapDraw implements World.RGBDraw {
 
+    public static final Paint PAINT = new Paint(Paint.ANTI_ALIAS_FLAG);
     private Bitmap bitmap;
     private Canvas canvas;
     private final Matrix matrix;
@@ -29,7 +31,7 @@ class BitmapDraw implements World.RGBDraw {
     @Override
     public void done() {
         canvas.drawColor(Color.BLACK);
-        this.canvas.drawBitmap(bitmap, matrix, null);
+        this.canvas.drawBitmap(bitmap, matrix, PAINT);
     }
 
     public void setCanvas(Canvas canvas) {
