@@ -27,8 +27,8 @@ android {
         applicationId "net.karpelevitch.xel"
         minSdkVersion 24
         targetSdkVersion 29
-        versionCode 11
-        versionName "1.10"
+        versionCode 12
+        versionName "1.11"
         renderscriptSupportModeEnabled true
         renderscriptTargetApi 19
     }

@@ -1,7 +1,11 @@
 package net.karpelevitch.xel;
 
 import android.content.Context;
-import android.support.v8.renderscript.*;
+import android.renderscript.Allocation;
+import android.renderscript.Element;
+import android.renderscript.RenderScript;
+import android.renderscript.ScriptIntrinsicConvolve3x3;
+import android.renderscript.Type;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
